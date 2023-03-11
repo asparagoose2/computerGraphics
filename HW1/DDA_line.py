@@ -57,12 +57,6 @@ while not done:
     
     # Clear the screen
     screen.fill((0, 0, 0))
-    
-
-
-                
-
-
 
 # Quit pygame and close the window
 pygame.quit()
