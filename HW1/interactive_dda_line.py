@@ -40,9 +40,16 @@ def init_screen():
     pygame.display.set_caption("DDA Algorithm Line")
     pygame.display.set_icon(pygame.image.load("Giraffe-PNG-Picture.png"))
 
-    # Set the line color to red
+    # write indtructions on screen
+    font = pygame.font.Font('freesansbold.ttf', 32)
+    text = font.render('Click to draw a line', True, (255, 255, 255), (0, 0, 0))
+    textRect = text.get_rect()
+    textRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+    screen.blit(text, textRect)
+    pygame.display.update()
 
     return screen, LINE_COLOR
+
 
 # main function
 def main():
