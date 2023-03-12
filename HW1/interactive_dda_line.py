@@ -38,6 +38,7 @@ def init_screen():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("DDA Algorithm Line")
+    pygame.display.set_icon(pygame.image.load("Giraffe-PNG-Picture.png"))
 
     # Set the line color to red
 
@@ -57,7 +58,7 @@ def main():
                     x1, y1 = pygame.mouse.get_pos()
                     done = True
                 if event.type == pygame.QUIT:
-                    pygame.quit()
+                    exit()
         done = False
 
         # get the second endpoint from user by clicking on the screen
@@ -67,7 +68,7 @@ def main():
                     x2, y2 = pygame.mouse.get_pos()
                     done = True
                 if event.type == pygame.QUIT:
-                    pygame.quit()
+                    exit()
         done = False
 
         # Clear the screen
