@@ -4,12 +4,8 @@ from tkinter import messagebox
 import tkinter.colorchooser as cc
 import math
 
-# Define the screen size
 SCREEN_WIDTH = 1700
 SCREEN_HEIGHT = 1200
-SETTINGS_WINDOW_WIDTH = 300
-SETTINGS_WINDOW_HEIGHT = 300
-COLOR_THEME = []
 DAFAULT_COLOR_THEME = ["#b9fbc0","#ffd670","#ff9770","#ff70a6","#70d6ff"]
 DIAGONAL_LINE_INDEX = 0
 RHOMBUS_LINE_INDEX = 1
@@ -21,7 +17,6 @@ COLOR_LABELS = ["Diagonal Line Color", "Rhombus Line Color", "Small Circle Color
 
 BACKGROUND_COLOR = "#000000"
 LINE_WIDTH = 2
-
 MINIMUM_LINE_LENGTH = 120
 
 point1 = None
