@@ -268,7 +268,6 @@ def create_color_picker_window():
 
     # Create a function to handle closing the window
     def apply_color_selection():
-        print("Selected colors: ", selected_colors)
         global DIAGONAL_LINE_COLOR, RHOMBUS_LINE_COLOR, SMALL_CIRCLE_COLOR, BIG_CIRCLE_COLOR, BEZIER_CURVE_COLOR,LINE_WIDTH
         DIAGONAL_LINE_COLOR = selected_colors[DIAGONAL_LINE_INDEX]
         RHOMBUS_LINE_COLOR = selected_colors[RHOMBUS_LINE_INDEX]
@@ -304,9 +303,7 @@ def main():
 
     screen.bind("<Button-1>", handle_click)
 
-    print("before mainloop")
     root.mainloop()
-    print("after mainloop")
         
 
 if __name__ == "__main__":
