@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import Canvas, Label, Tk, simpledialog
+from tkinter import messagebox
 import tkinter.colorchooser as cc
 import math
 
@@ -20,6 +21,8 @@ COLOR_LABELS = ["Diagonal Line Color", "Rhombus Line Color", "Small Circle Color
 
 BACKGROUND_COLOR = "#000000"
 LINE_WIDTH = 2
+
+MINIMUM_LINE_LENGTH = 120
 
 point1 = None
 point2 = None
@@ -47,6 +50,9 @@ def draw_line(x1, y1, x2, y2, color, screen: Canvas):
         steps = abs(dx)
     else:
         steps = abs(dy)
+
+    if steps == 0:
+        steps = 1
 
     # Calculate the amount to increment x and y on each step
     x_increment = dx / steps
@@ -130,10 +136,21 @@ def draw_bezier_curve(points, steps, screen, color):
         draw_line(curve_points[i][0], curve_points[i][1], curve_points[i+1][0], curve_points[i+1][1], color, screen)
     
 
+def validate_points():
+    global point1, point2, waiting_for_points
+    if point1 is None or point2 is None:
+        messagebox.showerror("Error", "You must select two points")
+        return False
+    if point1 == point2:
+        messagebox.showerror("Error", "The two points must be different")
+        return False
+    if length(point1[0], point1[1], point2[0], point2[1]) < MINIMUM_LINE_LENGTH:
+        messagebox.showerror("Error", "The two points must be at least {} pixels apart".format(MINIMUM_LINE_LENGTH))
+        return False
+    return True
 
 def handle_click(event: tk.Event):
     global point1, point2, waiting_for_points
-    print(event.x, event.y, waiting_for_points)
     if waiting_for_points:
         # draw the point on the screen
         screen.create_oval(event.x - 5, event.y - 5, event.x + 5, event.y + 5, fill="red")
@@ -142,12 +159,18 @@ def handle_click(event: tk.Event):
             point1 = (event.x, event.y)
         else:
             point2 = (event.x, event.y)
-            waiting_for_points = False            
-            draw_picture(screen)
+            if validate_points():
+                waiting_for_points = False
+                draw_picture(screen)            
+            else:
+                # Reset the points and start over
+                point1 = None
+                point2 = None
+                screen.delete("all")
 
 
 def get_integer_from_user():
-    input = simpledialog.askinteger("Input", "Enter the number of sections for the Bezier curve:", initialvalue=100, minvalue=1, maxvalue=1000)
+    input = simpledialog.askinteger("Input", "Enter the number of sections for the Bezier curve:", initialvalue=100, minvalue=3, maxvalue=1000)
     return input
 
 def draw_picture(screen: Canvas):
@@ -159,6 +182,9 @@ def draw_picture(screen: Canvas):
 
     # Clear the screen
     screen.delete("all")
+
+    if point1[0] > point2[0]:
+        point1, point2 = point2, point1
 
     x1, y1 = point1
     x2, y2 = point2
