@@ -4,6 +4,8 @@ import numpy as np
 from tkinter import Canvas
 from xml.etree.ElementTree import Element, ElementTree
 import time
+from tkinter import messagebox as mb
+
 
 
 WINDOW_WIDTH = 1800
@@ -253,12 +255,22 @@ def scroll_down(event):
     set_scale(scale - 0.1)
     update_screen()
 
+def handle_slider(event):
+    set_angle(int(event))
+    update_screen()
+
+def show_help():
+    print("Help")
+    mb.showinfo("Help", "Use the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
+
+
 def main():
     global root, canvas
+    global scale, angle, translate_X, translate_Y, shape_center
+
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
 
-    global scale, angle, translate_X, translate_Y, shape_center
 
     # Load and parse the SVG-like file
     tree: ElementTree = ET.parse('file.svg')
@@ -266,8 +278,29 @@ def main():
 
     # Create a Tkinter window
     window = tk.Tk()
+
+    # Set the window title
+    window.title("HW2: 2D Transformations   ·   Ofir & Shoval & Koral")
+
     canvas = tk.Canvas(window, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     canvas.pack()
+    slider = tk.Scale(window, from_=0, to=360, orient=tk.HORIZONTAL, command=handle_slider, length=300)
+    slider.pack()
+    slider_label = tk.Label(window, text="Angle")
+    slider_label.pack()
+
+    # Show welcome message
+    mb.showinfo("Welcome", "Welcome to our vector image viewer!\nUse the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
+    
+
+
+    menu = tk.Menu(window)
+    window.config(menu=menu)
+    filemenu = tk.Menu(menu, tearoff=0)
+    menu.add_cascade(label="File", menu=filemenu)
+    filemenu.add_command(label="Help", command=show_help)
+    filemenu.add_separator()
+    filemenu.add_command(label="Exit", command=window.quit)
 
     canvas.bind("<Button-1>", mouse_click)
     canvas.bind("<Button1-Motion>", mouse_drag)
