@@ -9,6 +9,9 @@ import time
 WINDOW_WIDTH = 1800
 WINDOW_HEIGHT = 1200
 
+canvas: Canvas = None
+root: Element = None
+
 scale = 1
 angle = 0
 translate_X = 0
@@ -27,7 +30,10 @@ def update_transformation_matrix():
 
 def set_scale(new_scale):
     global scale
-    scale = new_scale
+    if(scale + new_scale < 0.15):
+        scale = 0.1
+    else:
+        scale = new_scale
     update_transformation_matrix()
 
 def set_angle(new_angle):
@@ -45,6 +51,12 @@ def set_translate_Y(new_translate_Y):
     translate_Y =  new_translate_Y
     update_transformation_matrix()
     
+def set_translate(new_translate_X, new_translate_Y):
+    global translate_X
+    global translate_Y
+    translate_X =  new_translate_X
+    translate_Y =  new_translate_Y
+    update_transformation_matrix()
 
 def error(msg):
     print("Error! " + msg)
@@ -220,7 +232,29 @@ def draw_image(canvas: Canvas, root: Element):
             draw_line(canvas, p1, p2, shape_properties)
 
 
+def update_screen():
+    canvas.delete("all")
+    draw_image(canvas, root)
+
+def mouse_click(event):
+    set_translate(event.x, event.y)
+    update_screen()
+
+def mouse_drag(event):
+    set_translate(event.x, event.y)
+    update_screen()
+
+def scroll_up(event):
+    set_scale(scale + 0.1)
+    update_screen()
+
+
+def scroll_down(event):
+    set_scale(scale - 0.1)
+    update_screen()
+
 def main():
+    global root, canvas
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
 
@@ -228,12 +262,17 @@ def main():
 
     # Load and parse the SVG-like file
     tree: ElementTree = ET.parse('file.svg')
-    root: Element = tree.getroot()
+    root = tree.getroot()
 
     # Create a Tkinter window
     window = tk.Tk()
-    canvas: Canvas = tk.Canvas(window, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
+    canvas = tk.Canvas(window, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     canvas.pack()
+
+    canvas.bind("<Button-1>", mouse_click)
+    canvas.bind("<Button1-Motion>", mouse_drag)
+    canvas.bind("<Button-4>", scroll_up)
+    canvas.bind("<Button-5>", scroll_down)
 
     vertices = []
 
@@ -258,18 +297,14 @@ def main():
 
 
     shape_center = np.mean(vertices, axis=0)
-    draw_image(canvas, root)
-    window.update()
-    time.sleep(1)
+
     # center the shape to the center of the window
     set_translate_X(WINDOW_WIDTH/2)
     set_translate_Y(WINDOW_HEIGHT/2)
-    # translate_X = -shape_center[0] + WINDOW_WIDTH/2 + 550
-    # translate_Y = -shape_center[1] + WINDOW_HEIGHT/2 + 300
 
     draw_image(canvas, root)
     window.update()
-    time.sleep(1)
+
 
 
     
