@@ -14,7 +14,37 @@ angle = 0
 translate_X = 0
 translate_Y = 0
 
+shape_center = (0,0)
+
 transformation_matrix = np.eye(3)
+
+def update_transformation_matrix():
+    global transformation_matrix
+    transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
+    transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
+    transformation_matrix = np.matmul(transformation_matrix, np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]]))
+    transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
+
+def set_scale(new_scale):
+    global scale
+    scale = new_scale
+    update_transformation_matrix()
+
+def set_angle(new_angle):
+    global angle
+    angle = new_angle
+    update_transformation_matrix()
+
+def set_translate_X(new_translate_X):
+    global translate_X
+    translate_X =  new_translate_X
+    update_transformation_matrix()
+
+def set_translate_Y(new_translate_Y):  
+    global translate_Y
+    translate_Y =  new_translate_Y
+    update_transformation_matrix()
+    
 
 def error(msg):
     print("Error! " + msg)
@@ -114,14 +144,22 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties):
 
 def draw_image(canvas: Canvas, root: Element):
     global transformation_matrix
+
+    # # calculate the transformation matrix with angle, scale, and translation
+    # transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
+    # transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
+    # transformation_matrix = np.matmul(transformation_matrix, np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]]))
+    # # offser for 
+    # transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
+
     # create the transformation matrix to scale down the rectangle by 0.5
     # transformation_matrix = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]])
 
     # create the transformation matrix to rotate the rectangle by 45 degrees
 
     # create the transformation matrix to translate the rectangle by 100 in the x direction and 200 in the y direction
-    transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
-    transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
+    # transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
+    # transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
 
 
     # Iterate over shape elements
@@ -186,7 +224,7 @@ def main():
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
 
-    global scale, angle, translate_X, translate_Y
+    global scale, angle, translate_X, translate_Y, shape_center
 
     # Load and parse the SVG-like file
     tree: ElementTree = ET.parse('file.svg')
@@ -197,8 +235,44 @@ def main():
     canvas: Canvas = tk.Canvas(window, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
     canvas.pack()
 
-    # Draw the image
+    vertices = []
+
+    # calculate the shape's center
+    for shape_elem in root.findall('Shape'):
+        shape_type = shape_elem.attrib['type']
+        shape_properties = shape_elem.attrib
+
+        if shape_type == 'rect':
+            p1,p2 = parse_rect(shape_properties)
+            vertices.append(p1)
+            vertices.append(p2)
+
+        elif shape_type == 'circle':
+            c, r = parse_circle(shape_properties)
+            vertices.append(c)
+
+        elif shape_type == 'line':
+            p1,p2 = parse_line(shape_properties)
+            vertices.append(p1)
+            vertices.append(p2)
+
+
+    shape_center = np.mean(vertices, axis=0)
     draw_image(canvas, root)
+    window.update()
+    time.sleep(1)
+    # center the shape to the center of the window
+    set_translate_X(WINDOW_WIDTH/2)
+    set_translate_Y(WINDOW_HEIGHT/2)
+    # translate_X = -shape_center[0] + WINDOW_WIDTH/2 + 550
+    # translate_Y = -shape_center[1] + WINDOW_HEIGHT/2 + 300
+
+    draw_image(canvas, root)
+    window.update()
+    time.sleep(1)
+
+
+    
 
     # for translate_X in np.arange(100, 1000, 10):
     #     canvas.delete("all")
@@ -210,9 +284,13 @@ def main():
     #     window.update()
     #     time.sleep(0.1)
 
-    # for angle in np.arange(0, 360, 1):
+    # for alfa in np.arange(0, 360, 1):
     #     # Clear the canvas
     #     canvas.delete("all")
+
+    #     canvas.create_oval(shape_center[0]-5, shape_center[1]-5, shape_center[0]+5, shape_center[1]+5, fill="red")
+
+    #     set_angle(alfa)
 
     #     # Draw the image
     #     draw_image(canvas, root)
