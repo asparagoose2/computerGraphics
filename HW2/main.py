@@ -1,74 +1,327 @@
+'''
+    HW2 - 2D Transformations
+    This is the work of:
+    - Ofir Duchovne
+    - Shoval Zohar
+    - Koral Tsaba
+    Subbmitted to:
+    - Dr. Sheffer Eyal
+    As part of the course:
+    - Computer Graphics
+    At:
+    - Shenkar College of Engineering and Design
+'''
+
 import tkinter as tk
 import xml.etree.ElementTree as ET
 import numpy as np
+from tkinter import Canvas
+from xml.etree.ElementTree import Element, ElementTree
+from tkinter import messagebox as mb
 
-# Load and parse the SVG-like file
-tree = ET.parse('file.svg')
-root = tree.getroot()
+WINDOW_WIDTH = 1800
+WINDOW_HEIGHT = 1200
 
-# Create a Tkinter window
-window = tk.Tk()
-canvas = tk.Canvas(window, width=800, height=600)
-canvas.pack()
+canvas: Canvas = None
+root: Element = None
+window: tk.Tk = None
 
-# Define helper function for matrix multiplication
+scale = 1
+angle = 0
+translate_X = 0
+translate_Y = 0
+
+shape_center = (0,0)
+transformation_matrix = np.eye(3)
+
+def update_transformation_matrix():
+    global transformation_matrix
+    # Apply translation
+    transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
+    # Apply rotation
+    transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
+    # Apply scaling
+    transformation_matrix = np.matmul(transformation_matrix, np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]]))
+    # Apply translation offset to the shape's center (caused by rotation)
+    transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
+
+def set_scale(new_scale):
+    global scale
+    # Prevent scale from being too small
+    if(scale + new_scale < 0.15):
+        scale = 0.1
+    else:
+        scale = new_scale
+    update_transformation_matrix()
+
+def set_angle(new_angle):
+    global angle
+    angle = new_angle
+    update_transformation_matrix()
+
+def set_translate_X(new_translate_X):
+    global translate_X
+    translate_X =  new_translate_X
+    update_transformation_matrix()
+
+def set_translate_Y(new_translate_Y):  
+    global translate_Y
+    translate_Y =  new_translate_Y
+    update_transformation_matrix()
+    
+def set_translate(new_translate_X, new_translate_Y):
+    global translate_X
+    global translate_Y
+    translate_X =  new_translate_X
+    translate_Y =  new_translate_Y
+    update_transformation_matrix()
+
+def error(msg):
+    print("Error! " + msg)
+    mb.showerror("Error", msg)
+    window.destroy()
+    exit(-1)
+
 def apply_matrix(matrix, point):
+    '''
+    Apply a matrix to a point
+    :param matrix: The matrix to apply
+    :param point: The point to apply the matrix to
+    :return: The transformed point
+    '''
     homogeneous_point = np.array([point[0], point[1], 1])
     transformed_point = np.matmul(matrix, homogeneous_point)
     return transformed_point[:2]  # Extract the x and y coordinates
 
-# Iterate over shape elements
-for shape_elem in root.findall('Shape'):
-    shape_type = shape_elem.attrib['type']
-    shape_properties = shape_elem.attrib
+def parse_circle(shape_properties: dict):
+    '''
+    Parse the circle shape properties
+    :param shape_properties: The properties of the shape
+    :return: The center point and radius of the circle
+    '''
+    cx = shape_properties.get('cx')
+    cy = shape_properties.get('cy')
+    if cx is None or cy is None:
+        error("In shape circle, cx or cy are not defined")
+    cx = float(cx)
+    cy = float(cy)
 
-    # Apply transformations
-    transformation_matrix = np.eye(3)  # Identity matrix
-    for transform_elem in root.findall('Transformations/*'):
-        if transform_elem.tag == 'Translate':
-            tx = float(transform_elem.attrib['x'])
-            ty = float(transform_elem.attrib['y'])
-            translation_matrix = np.array([[1, 0, tx], [0, 1, ty], [0, 0, 1]])
-            transformation_matrix = np.matmul(transformation_matrix, translation_matrix)
-        elif transform_elem.tag == 'Scale':
-            sx = float(transform_elem.attrib['x'])
-            sy = float(transform_elem.attrib['y'])
-            scaling_matrix = np.array([[sx, 0, 0], [0, sy, 0], [0, 0, 1]])
-            transformation_matrix = np.matmul(transformation_matrix, scaling_matrix)
-        elif transform_elem.tag == 'Rotate':
-            angle = float(transform_elem.attrib['angle'])
-            rad = np.radians(angle)
-            cos_theta = np.cos(rad)
-            sin_theta = np.sin(rad)
-            rotation_matrix = np.array([[cos_theta, -sin_theta, 0], [sin_theta, cos_theta, 0], [0, 0, 1]])
-            transformation_matrix = np.matmul(transformation_matrix, rotation_matrix)
+    r = shape_properties.get('r')
+    if r is None:
+        error("In shape circle, r is not defined")
+    r = float(r)
 
-    # Apply the transformation matrix to the shape properties
-    if shape_type == 'rect':
-        x = float(shape_properties['x'])
-        y = float(shape_properties['y'])
-        width = float(shape_properties['width'])
-        height = float(shape_properties['height'])
+    return (cx,cy), r
 
-        # Apply transformation to the rectangle's vertices
-        vertices = [(x, y), (x + width, y), (x + width, y + height), (x, y + height)]
-        transformed_vertices = [apply_matrix(transformation_matrix, vertex) for vertex in vertices]
+def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
+    '''
+    Draw a circle on the canvas
+    :param canvas: The canvas to draw on
+    :param c: The center point of the circle
+    :param r: The radius of the circle
+    :param shape_properties: The properties of the shape
+    :param start: The start angle of the arc
+    :param extent: The extent of the arc
+    :return: None
+    '''
+    fill = shape_properties.get("fill")
+    stroke = shape_properties.get("stroke")
+    stroke_width = shape_properties.get("width")
+    if stroke_width is None:
+        stroke_width = 1
+    else:
+        stroke_width = float(stroke_width) * scale
 
-        # Draw the transformed rectangle on the canvas
-        canvas.create_rectangle(*transformed_vertices, fill=shape_properties['fill'])
+    if start is not None and extent is not None:
+        canvas.create_arc(c[0]-r, c[1]-r, c[0]+r, c[1]+r, start=start, extent=extent, style=tk.ARC, width=stroke_width, outline=stroke)
+    else:
+        canvas.create_oval(c[0]-r, c[1]-r, c[0]+r, c[1]+r,fill=fill, outline=stroke, width=stroke_width)
 
-    elif shape_type == 'circle':
-        cx = float(shape_properties['cx'])
-        cy = float(shape_properties['cy'])
-        r = float(shape_properties['r'])
+def parse_line(shape_properties: dict):
+    '''
+    Parse the line shape properties
+    :param shape_properties: The properties of the shape
+    :return: The two points of the line
+    '''
+    x1 = shape_properties.get('x1')
+    y1 = shape_properties.get('y1')
+    x2 = shape_properties.get('x2')
+    y2 = shape_properties.get('y2')
+    if x1 is None or y1 is None or x2 is None or y2 is None:
+        error("In shape line, x1, y1, x2, or y2 are not defined")
+    x1 = float(x1)
+    y1 = float(y1)
+    x2 = float(x2)
+    y2 = float(y2)
 
-        # Apply transformation to the circle's center
-        transformed_center = apply_matrix(transformation_matrix, (cx, cy))
+    return (x1,y1),(x2,y2)
 
-        # Draw the transformed circle on the canvas
-        canvas.create_oval(transformed_center[0] - r, transformed_center[1] - r,
-                           transformed_center[0] + r, transformed_center[1] + r,
-                           fill=shape_properties['fill'])
+def draw_line(canvas: Canvas, p1, p2, shape_properties):
+    '''
+    Draw a line on the canvas
+    :param canvas: The canvas to draw on
+    :param p1: The first point of the line  
+    :param p2: The second point of the line
+    :param shape_properties: The properties of the shape
+    :return: None
+    '''
+    fill = shape_properties.get("fill")
+    width = shape_properties.get("width")
+    if width is None:
+        width = 1
+    else:
+        width = float(width) * scale
 
-# Run the Tkinter event loop
-window.mainloop()
+    canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width)
+
+def draw_image(canvas: Canvas, root: Element):
+    '''
+    Draw the image on the canvas
+    :param canvas: The canvas to draw on
+    :param root: The root element of the XML tree
+    :return: None
+    '''
+    # Iterate over shape elements
+    for shape_elem in root.findall('Shape'):
+        shape_type = shape_elem.attrib['type']
+        shape_properties = shape_elem.attrib
+
+        if shape_type == 'circle':
+            c, r = parse_circle(shape_properties)
+            # apply the transformation matrix to the center point and radius
+            c = apply_matrix(transformation_matrix, c)
+            # scale the radius
+            r = r * scale
+            
+            start = shape_properties.get('start_angle')
+            extent = shape_properties.get('extent')
+
+            # apply the transformation matrix to the start and extent angles
+            if start is not None and extent is not None:
+                start = float(start)
+                extent = float(extent)
+                # adjust the start angle according to the roation angle
+                start = start - angle 
+
+            draw_circle(canvas, c, r, shape_properties, start, extent)
+        
+        elif shape_type == 'line':
+            p1,p2 = parse_line(shape_properties)
+            # apply the transformation matrix to the two points
+            p1 = apply_matrix(transformation_matrix, p1)
+            p2 = apply_matrix(transformation_matrix, p2)
+            draw_line(canvas, p1, p2, shape_properties)
+
+        else:
+            error("Shape type " + shape_type + " is not supported")
+
+
+def update_screen():
+    '''
+    Clears the screen and redraw the image
+    :return: None
+    '''
+    canvas.delete("all")
+    draw_image(canvas, root)
+
+def mouse_click(event):
+    set_translate(event.x, event.y)
+    update_screen()
+
+def mouse_drag(event):
+    set_translate(event.x, event.y)
+    update_screen()
+
+def scroll_up(event):
+    set_scale(scale + 0.1)
+    update_screen()
+
+
+def scroll_down(event):
+    set_scale(scale - 0.1)
+    update_screen()
+
+def handle_slider(event):
+    set_angle(int(event))
+    update_screen()
+
+def show_help():
+    print("Help")
+    mb.showinfo("Help", "Use the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
+
+
+def main():
+    global root, canvas, window
+    global scale, angle, translate_X, translate_Y, shape_center
+
+    print("HW2: 2D Transformations is starting...")
+    print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
+
+
+    # Load and parse the SVG-like file
+    tree: ElementTree = ET.parse('file.svg')
+    root = tree.getroot()
+
+    # Create a Tkinter window
+    window = tk.Tk()
+
+    # Set the window title
+    window.title("HW2: 2D Transformations   ·   Ofir & Shoval & Koral")
+
+    canvas = tk.Canvas(window, width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
+    canvas.pack()
+    slider = tk.Scale(window, from_=0, to=360, orient=tk.HORIZONTAL, command=handle_slider, length=300)
+    slider.pack()
+    slider_label = tk.Label(window, text="Angle")
+    slider_label.pack()
+
+    # Show welcome message
+    mb.showinfo("Welcome", "Welcome to our vector image viewer!\nUse the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
+    
+
+
+    menu = tk.Menu(window)
+    window.config(menu=menu)
+    filemenu = tk.Menu(menu, tearoff=0)
+    menu.add_cascade(label="File", menu=filemenu)
+    filemenu.add_command(label="Help", command=show_help)
+    filemenu.add_separator()
+    filemenu.add_command(label="Exit", command=window.quit)
+
+    canvas.bind("<Button-1>", mouse_click)
+    canvas.bind("<Button1-Motion>", mouse_drag)
+    canvas.bind("<Button-4>", scroll_up)
+    canvas.bind("<Button-5>", scroll_down)
+
+    vertices = []
+
+    # calculate the shape's center
+    for shape_elem in root.findall('Shape'):
+        shape_type = shape_elem.attrib['type']
+        shape_properties = shape_elem.attrib
+
+        if shape_type == 'circle':
+            c, r = parse_circle(shape_properties)
+            vertices.append(c)
+
+        elif shape_type == 'line':
+            p1,p2 = parse_line(shape_properties)
+            vertices.append(p1)
+            vertices.append(p2)
+
+        else:
+            error("Shape type " + shape_type + " is not supported")
+
+
+    shape_center = np.mean(vertices, axis=0)
+
+    # center the shape to the center of the window
+    set_translate_X(WINDOW_WIDTH/2)
+    set_translate_Y(WINDOW_HEIGHT/2)
+
+    draw_image(canvas, root)
+    window.mainloop()
+
+
+if __name__ == "__main__":
+    main()
