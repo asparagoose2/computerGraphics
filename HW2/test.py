@@ -6,13 +6,12 @@ from xml.etree.ElementTree import Element, ElementTree
 import time
 from tkinter import messagebox as mb
 
-
-
 WINDOW_WIDTH = 1800
 WINDOW_HEIGHT = 1200
 
 canvas: Canvas = None
 root: Element = None
+window: tk.Tk = None
 
 scale = 1
 angle = 0
@@ -20,7 +19,6 @@ translate_X = 0
 translate_Y = 0
 
 shape_center = (0,0)
-
 transformation_matrix = np.eye(3)
 
 def update_transformation_matrix():
@@ -62,6 +60,8 @@ def set_translate(new_translate_X, new_translate_Y):
 
 def error(msg):
     print("Error! " + msg)
+    mb.showerror("Error", msg)
+    window.destroy()
     exit(-1)
 
 # Define helper function for matrix multiplication
@@ -157,41 +157,12 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties):
     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width)
 
 def draw_image(canvas: Canvas, root: Element):
-    global transformation_matrix
-
-    # # calculate the transformation matrix with angle, scale, and translation
-    # transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
-    # transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
-    # transformation_matrix = np.matmul(transformation_matrix, np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]]))
-    # # offser for 
-    # transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
-
-    # create the transformation matrix to scale down the rectangle by 0.5
-    # transformation_matrix = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]])
-
-    # create the transformation matrix to rotate the rectangle by 45 degrees
-
-    # create the transformation matrix to translate the rectangle by 100 in the x direction and 200 in the y direction
-    # transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
-    # transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
-
-
     # Iterate over shape elements
     for shape_elem in root.findall('Shape'):
         shape_type = shape_elem.attrib['type']
         shape_properties = shape_elem.attrib
 
-        # Apply the transformation matrix to the shape properties
-        if shape_type == 'rect':
-            p1,p2 = parse_rect(shape_properties)
-            p1 = apply_matrix(transformation_matrix, p1)
-            p2 = apply_matrix(transformation_matrix, p2)
-
-            # Draw the transformed rectangle on the canvas
-            draw_rect(canvas, p1, p2, shape_properties)
-
-
-        elif shape_type == 'circle':
+        if shape_type == 'circle':
             c, r = parse_circle(shape_properties)
             c = apply_matrix(transformation_matrix, c)
             r = r * scale
@@ -206,32 +177,15 @@ def draw_image(canvas: Canvas, root: Element):
                 start = start - angle 
 
             draw_circle(canvas, c, r, shape_properties, start, extent)
-
-
-            # cx = float(shape_properties['cx'])
-            # cy = float(shape_properties['cy'])
-            # r = float(shape_properties['r'])
-
-            # # safely get start_angle
-            # start = shape_properties.get('start_angle')
-            # extent = shape_properties.get('extent')
-
-            # fill = shape_properties.get("fill")
-            # stroke = shape_properties.get("stroke")
-            # width = shape_properties.get("width")
-            
-            # if start is not None and extent is not None:
-            #     canvas.create_arc(cx-r, cy-r, cx+r, cy+r, start=start, extent=extent, style=tk.ARC, width=width, outline=stroke)
-            # else:
-            #     canvas.create_oval(cx-r, cy-r, cx+r, cy+r,fill=fill, outline=stroke, width=width)
-
-            # Draw the transformed circle on the canvas
         
         elif shape_type == 'line':
             p1,p2 = parse_line(shape_properties)
             p1 = apply_matrix(transformation_matrix, p1)
             p2 = apply_matrix(transformation_matrix, p2)
             draw_line(canvas, p1, p2, shape_properties)
+
+        else:
+            error("Shape type " + shape_type + " is not supported")
 
 
 def update_screen():
@@ -265,7 +219,7 @@ def show_help():
 
 
 def main():
-    global root, canvas
+    global root, canvas, window
     global scale, angle, translate_X, translate_Y, shape_center
 
     print("HW2: 2D Transformations is starting...")
@@ -314,12 +268,7 @@ def main():
         shape_type = shape_elem.attrib['type']
         shape_properties = shape_elem.attrib
 
-        if shape_type == 'rect':
-            p1,p2 = parse_rect(shape_properties)
-            vertices.append(p1)
-            vertices.append(p2)
-
-        elif shape_type == 'circle':
+        if shape_type == 'circle':
             c, r = parse_circle(shape_properties)
             vertices.append(c)
 
@@ -327,6 +276,9 @@ def main():
             p1,p2 = parse_line(shape_properties)
             vertices.append(p1)
             vertices.append(p2)
+
+        else:
+            error("Shape type " + shape_type + " is not supported")
 
 
     shape_center = np.mean(vertices, axis=0)
@@ -336,51 +288,6 @@ def main():
     set_translate_Y(WINDOW_HEIGHT/2)
 
     draw_image(canvas, root)
-    window.update()
-
-
-
-    
-
-    # for translate_X in np.arange(100, 1000, 10):
-    #     canvas.delete("all")
-
-    #     # Draw the image
-    #     draw_image(canvas, root)
-    
-    #     # Wait for 1 second
-    #     window.update()
-    #     time.sleep(0.1)
-
-    # for alfa in np.arange(0, 360, 1):
-    #     # Clear the canvas
-    #     canvas.delete("all")
-
-    #     canvas.create_oval(shape_center[0]-5, shape_center[1]-5, shape_center[0]+5, shape_center[1]+5, fill="red")
-
-    #     set_angle(alfa)
-
-    #     # Draw the image
-    #     draw_image(canvas, root)
-    
-    #     # Wait for 1 second
-    #     window.update()
-    #     time.sleep(0.1)
-
-    # draw the image from scale 0.1 to 1.0
-    # for scale in np.arange(0.1, 2, 0.1):
-    #     # Clear the canvas
-    #     canvas.delete("all")
-
-    #     # Draw the image
-    #     draw_image(canvas, root)
-
-    #     # Wait for 1 second
-    #     window.update()
-    #     time.sleep(1)
-
-
-
     window.mainloop()
 
 
