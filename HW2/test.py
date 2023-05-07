@@ -1,9 +1,22 @@
+'''
+    HW2 - 2D Transformations
+    This is the work of:
+    - Ofir Duchovne
+    - Shoval Zohar
+    - Koral Tsaba
+    Subbmitted to:
+    - Dr. Sheffer Eyal
+    As part of the course:
+    - Computer Graphics
+    At:
+    - Shenkar College of Engineering and Design
+'''
+
 import tkinter as tk
 import xml.etree.ElementTree as ET
 import numpy as np
 from tkinter import Canvas
 from xml.etree.ElementTree import Element, ElementTree
-import time
 from tkinter import messagebox as mb
 
 WINDOW_WIDTH = 1800
@@ -23,13 +36,18 @@ transformation_matrix = np.eye(3)
 
 def update_transformation_matrix():
     global transformation_matrix
+    # Apply translation
     transformation_matrix = np.array([[1, 0, translate_X], [0, 1, translate_Y], [0, 0, 1]])
+    # Apply rotation
     transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
+    # Apply scaling
     transformation_matrix = np.matmul(transformation_matrix, np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]]))
+    # Apply translation offset to the shape's center (caused by rotation)
     transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
 
 def set_scale(new_scale):
     global scale
+    # Prevent scale from being too small
     if(scale + new_scale < 0.15):
         scale = 0.1
     else:
@@ -64,46 +82,23 @@ def error(msg):
     window.destroy()
     exit(-1)
 
-# Define helper function for matrix multiplication
 def apply_matrix(matrix, point):
+    '''
+    Apply a matrix to a point
+    :param matrix: The matrix to apply
+    :param point: The point to apply the matrix to
+    :return: The transformed point
+    '''
     homogeneous_point = np.array([point[0], point[1], 1])
     transformed_point = np.matmul(matrix, homogeneous_point)
     return transformed_point[:2]  # Extract the x and y coordinates
 
-def parse_rect(shape_properties):
-    x = shape_properties.get('x')
-    y = shape_properties.get('y')
-    if x is None or y is None:
-        error("In shape rect, x or y are not defined")
-    x = float(x)
-    y = float(y)
-
-    width = shape_properties.get('width')
-    height = shape_properties.get('height')
-
-    if width is None or height is None:
-        error("In shape rect, width or height are not defined")
-
-    width = float(width)
-    height = float(height)
-
-    return (x,y),(x+width,y+height)
-
-def draw_rect(canvas: Canvas, p1, p2, shape_properties):
-    fill = shape_properties.get("fill")
-    stroke = shape_properties.get("stroke")
-    if stroke is None:
-        stroke = ""
-    stroke_width = shape_properties.get("stroke_width")
-    if stroke_width is None:
-        stroke_width = 1
-    else:
-        stroke_width = float(stroke_width) * scale
-
-    # Draw the transformed rectangle on the canvas
-    canvas.create_rectangle(p1[0], p1[1], p2[0], p2[1], fill=fill, outline=stroke, width=stroke_width)
-
 def parse_circle(shape_properties: dict):
+    '''
+    Parse the circle shape properties
+    :param shape_properties: The properties of the shape
+    :return: The center point and radius of the circle
+    '''
     cx = shape_properties.get('cx')
     cy = shape_properties.get('cy')
     if cx is None or cy is None:
@@ -119,6 +114,16 @@ def parse_circle(shape_properties: dict):
     return (cx,cy), r
 
 def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
+    '''
+    Draw a circle on the canvas
+    :param canvas: The canvas to draw on
+    :param c: The center point of the circle
+    :param r: The radius of the circle
+    :param shape_properties: The properties of the shape
+    :param start: The start angle of the arc
+    :param extent: The extent of the arc
+    :return: None
+    '''
     fill = shape_properties.get("fill")
     stroke = shape_properties.get("stroke")
     stroke_width = shape_properties.get("width")
@@ -133,6 +138,11 @@ def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
         canvas.create_oval(c[0]-r, c[1]-r, c[0]+r, c[1]+r,fill=fill, outline=stroke, width=stroke_width)
 
 def parse_line(shape_properties: dict):
+    '''
+    Parse the line shape properties
+    :param shape_properties: The properties of the shape
+    :return: The two points of the line
+    '''
     x1 = shape_properties.get('x1')
     y1 = shape_properties.get('y1')
     x2 = shape_properties.get('x2')
@@ -147,6 +157,14 @@ def parse_line(shape_properties: dict):
     return (x1,y1),(x2,y2)
 
 def draw_line(canvas: Canvas, p1, p2, shape_properties):
+    '''
+    Draw a line on the canvas
+    :param canvas: The canvas to draw on
+    :param p1: The first point of the line  
+    :param p2: The second point of the line
+    :param shape_properties: The properties of the shape
+    :return: None
+    '''
     fill = shape_properties.get("fill")
     width = shape_properties.get("width")
     if width is None:
@@ -157,6 +175,12 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties):
     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width)
 
 def draw_image(canvas: Canvas, root: Element):
+    '''
+    Draw the image on the canvas
+    :param canvas: The canvas to draw on
+    :param root: The root element of the XML tree
+    :return: None
+    '''
     # Iterate over shape elements
     for shape_elem in root.findall('Shape'):
         shape_type = shape_elem.attrib['type']
@@ -164,7 +188,9 @@ def draw_image(canvas: Canvas, root: Element):
 
         if shape_type == 'circle':
             c, r = parse_circle(shape_properties)
+            # apply the transformation matrix to the center point and radius
             c = apply_matrix(transformation_matrix, c)
+            # scale the radius
             r = r * scale
             
             start = shape_properties.get('start_angle')
@@ -174,12 +200,14 @@ def draw_image(canvas: Canvas, root: Element):
             if start is not None and extent is not None:
                 start = float(start)
                 extent = float(extent)
+                # adjust the start angle according to the roation angle
                 start = start - angle 
 
             draw_circle(canvas, c, r, shape_properties, start, extent)
         
         elif shape_type == 'line':
             p1,p2 = parse_line(shape_properties)
+            # apply the transformation matrix to the two points
             p1 = apply_matrix(transformation_matrix, p1)
             p2 = apply_matrix(transformation_matrix, p2)
             draw_line(canvas, p1, p2, shape_properties)
@@ -189,6 +217,10 @@ def draw_image(canvas: Canvas, root: Element):
 
 
 def update_screen():
+    '''
+    Clears the screen and redraw the image
+    :return: None
+    '''
     canvas.delete("all")
     draw_image(canvas, root)
 
