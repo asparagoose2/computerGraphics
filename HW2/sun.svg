@@ -1,0 +1,21 @@
+<Canvas width="800" height="600">
+    <!-- Sun Body -->
+    <Shape type="circle" cx="400" cy="300" r="100" stroke="yellow" width="6" />
+    <!-- Sun Rays -->
+    <Shape type="line" x1="400" y1="200" x2="400" y2="100" width="6" fill="yellow"/>
+    <Shape type="line" x1="400" y1="400" x2="400" y2="500" width="6" fill="yellow"/>
+    <Shape type="line" x1="300" y1="300" x2="200" y2="300" width="6" fill="yellow"/>
+    <Shape type="line" x1="500" y1="300" x2="600" y2="300" width="6" fill="yellow"/>
+    <!--  -->
+    <Shape type="line" x1="330" y1="370" x2="250" y2="450" width="6" fill="yellow"/>
+    <Shape type="line" x1="470" y1="370" x2="550" y2="450" width="6" fill="yellow"/>
+    <Shape type="line" x1="330" y1="230" x2="250" y2="150" width="6" fill="yellow"/>
+    <Shape type="line" x1="470" y1="230" x2="550" y2="150" width="6" fill="yellow"/>
+    <!-- Sun Eyes -->
+    <Shape type="circle" cx="370" cy="280" r="10" stroke="yellow" width="6" />
+    <Shape type="circle" cx="430" cy="280" r="10" stroke="yellow" width="6" />
+    <!-- Sun Mouth -->
+    <Shape type="line" x1="370" y1="320" x2="430" y2="320" width="6" fill="yellow"/>
+    <Shape type="line" x1="370" y1="320" x2="400" y2="340" width="6" fill="yellow"/>
+    <Shape type="line" x1="430" y1="320" x2="400" y2="340" width="6" fill="yellow"/>
+</Canvas>
