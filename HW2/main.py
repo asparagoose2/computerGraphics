@@ -41,6 +41,7 @@ translate_Y = 0
 
 is_windows = hasattr(sys, 'getwindowsversion')
 is_click_to_position: tk.BooleanVar = None
+last_click_position = (0,0)
 
 shape_center = (0,0)
 transformation_matrix = np.eye(3)
@@ -236,12 +237,20 @@ def update_screen():
     draw_image(canvas, root)
 
 def mouse_click(event):
+    global last_click_position
+    last_click_position = (event.x, event.y)
     if is_click_to_position.get():
         set_translate(event.x, event.y)
         update_screen()
-
+        
 def mouse_drag(event):
-    set_translate(event.x, event.y)
+    global last_click_position
+    if is_click_to_position.get():
+        set_translate(event.x, event.y)
+    else:
+        offset_point = (event.x - last_click_position[0], event.y - last_click_position[1])
+        set_translate(translate_X + offset_point[0], translate_Y + offset_point[1])
+        last_click_position = (event.x, event.y)
     update_screen()
 
 def scroll_up(event):
