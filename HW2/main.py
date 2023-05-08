@@ -24,7 +24,7 @@ HELP_MESSAGE = '''Use the mouse to drag the image around or click the position y
 Use the mouse wheel to zoom in and out
 Use the slider to rotate the image'''
 HELP_TITLE = "Help"
-DEFAULT_FILE = "house.svg"
+DEFAULT_FILE = "tractor.svg"
 
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
