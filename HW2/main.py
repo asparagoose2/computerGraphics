@@ -325,12 +325,13 @@ def load_file():
     angle = 0
     slider.set(0)
 
+    # Reset the shape center
+    shape_center = calc_shape_center(root.findall('Shape'))
+    
     # Reset the translation
     set_translate_X(WINDOW_WIDTH/2)
     set_translate_Y(WINDOW_HEIGHT/2)
 
-    # Reset the shape center
-    shape_center = calc_shape_center(root.findall('Shape'))
 
     # Draw the image
     draw_image(canvas, root)
