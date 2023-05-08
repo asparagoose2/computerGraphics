@@ -11,6 +11,7 @@
     At:
     - Shenkar College of Engineering and Design
 '''
+import math
 import sys
 import tkinter as tk
 import xml.etree.ElementTree as ET
@@ -38,12 +39,15 @@ scale = 1
 angle = 0
 translate_X = 0
 translate_Y = 0
+mirror = True
 
 is_windows = hasattr(sys, 'getwindowsversion')
 is_click_to_position: tk.BooleanVar = None
+is_show_shape_enclosing_rect: tk.BooleanVar = None
 last_click_position = (0,0)
 
 shape_center = (0,0)
+enclosing_rect = []
 transformation_matrix = np.eye(3)
 
 def update_transformation_matrix():
@@ -54,6 +58,11 @@ def update_transformation_matrix():
     transformation_matrix = np.matmul(transformation_matrix, np.array([[np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0], [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0], [0, 0, 1]]))
     # Apply scaling
     transformation_matrix = np.matmul(transformation_matrix, np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]]))
+    # apply vertical mirrror
+    # transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]]))
+    # apply horizontal mirrror
+    if mirror:
+        transformation_matrix = np.matmul(transformation_matrix, np.array([[-1, 0, 0], [0, 1, 0], [0, 0, 1]]))
     # Apply translation offset to the shape's center (caused by rotation)
     transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
 
@@ -179,12 +188,16 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties):
     '''
     fill = shape_properties.get("fill")
     width = shape_properties.get("width")
+    dotted = shape_properties.get("dotted")
+    if dotted is not None:
+        dotted = (2, 2)
+
     if width is None:
         width = 1
     else:
         width = float(width) * scale
 
-    canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width)
+    canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width, dash=dotted)
 
 def draw_image(canvas: Canvas, root: Element):
     '''
@@ -193,6 +206,7 @@ def draw_image(canvas: Canvas, root: Element):
     :param root: The root element of the XML tree
     :return: None
     '''
+    global enclosing_rect
     # Iterate over shape elements
     for shape_elem in root.findall('Shape'):
         shape_type = shape_elem.attrib['type']
@@ -214,7 +228,11 @@ def draw_image(canvas: Canvas, root: Element):
                 extent = float(extent)
                 # adjust the start angle according to the roation angle
                 start = start - angle 
-
+                if mirror:
+                    # adjust the extent angle according to the roation angle
+                    extent = -extent
+                    start = 180 - start
+                
             draw_circle(canvas, c, r, shape_properties, start, extent)
         
         elif shape_type == 'line':
@@ -226,6 +244,17 @@ def draw_image(canvas: Canvas, root: Element):
 
         else:
             error("Shape type " + shape_type + " is not supported")
+
+    if is_show_shape_enclosing_rect.get():
+        p1 = apply_matrix(transformation_matrix, enclosing_rect[0])
+        p2 = apply_matrix(transformation_matrix, enclosing_rect[1])
+        p3 = apply_matrix(transformation_matrix, enclosing_rect[2])
+        p4 = apply_matrix(transformation_matrix, enclosing_rect[3])
+        draw_line(canvas, p1, p2, {"fill": "red", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, p2, p3, {"fill": "red", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, p3, p4, {"fill": "red", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, p4, p1, {"fill": "red", "width": 1, "dotted": (2, 2)})
+        
 
 
 def update_screen():
@@ -277,7 +306,7 @@ def mouse_wheel(event: tk.Event):
     else:
         print("Unknown mouse wheel event")
 
-def calc_shape_center(shapes):
+def calc_shape_center_and_enclosing_rect(shapes):
     vertices = []
     for shape_elem in shapes:
         shape_type = shape_elem.attrib['type']
@@ -285,7 +314,10 @@ def calc_shape_center(shapes):
 
         if shape_type == 'circle':
             c, r = parse_circle(shape_properties)
-            vertices.append(c)
+            vertices.append((c[0] - r, c[1] - r))
+            vertices.append((c[0] + r, c[1] - r))
+            vertices.append((c[0] + r, c[1] + r))
+            vertices.append((c[0] - r, c[1] + r))
 
         elif shape_type == 'line':
             p1,p2 = parse_line(shape_properties)
@@ -294,15 +326,29 @@ def calc_shape_center(shapes):
 
         else:
             error("Shape type " + shape_type + " is not supported")
+    
+    # find the shape's enclosing rectangle
+    min_x = min(vertices, key=lambda x: x[0])[0]
+    max_x = max(vertices, key=lambda x: x[0])[0]
+    min_y = min(vertices, key=lambda x: x[1])[1]
+    max_y = max(vertices, key=lambda x: x[1])[1]
+    # round the values
+    min_x = round(min_x)
+    max_x = round(max_x)
+    min_y = round(min_y)
+    max_y = round(max_y)
 
-    return np.mean(vertices, axis=0)
+    border = [(min_x, min_y), (max_x, min_y), (max_x, max_y), (min_x, max_y)]
+    
+
+    return np.mean(vertices, axis=0), border
 
 
 def load_file():
     global root
     global canvas
     global window
-    global scale, angle, translate_X, translate_Y, shape_center, transformation_matrix
+    global scale, angle, translate_X, translate_Y, shape_center, enclosing_rect, transformation_matrix
 
     filename = fd.askopenfilename(title="Select SVG file", filetypes=(("svg files", "*.svg"), ("all files", "*.*")))
     if filename is None or filename == () or filename == "":
@@ -326,7 +372,7 @@ def load_file():
     slider.set(0)
 
     # Reset the shape center
-    shape_center = calc_shape_center(root.findall('Shape'))
+    shape_center, enclosing_rect = calc_shape_center_and_enclosing_rect(root.findall('Shape'))
     
     # Reset the translation
     set_translate_X(WINDOW_WIDTH/2)
@@ -354,6 +400,8 @@ def reset():
     angle = 0
     slider.set(0)
 
+
+
     # Reset the translation
     set_translate_X(WINDOW_WIDTH/2)
     set_translate_Y(WINDOW_HEIGHT/2)
@@ -363,8 +411,8 @@ def reset():
 
 def main():
     global root, canvas, window, slider
-    global scale, angle, translate_X, translate_Y, shape_center
-    global is_click_to_position
+    global scale, angle, translate_X, translate_Y, shape_center, enclosing_rect
+    global is_click_to_position, is_show_shape_enclosing_rect
 
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
@@ -394,6 +442,9 @@ def main():
 
     is_click_to_position = tk.BooleanVar()
     is_click_to_position.set(True)
+    is_show_shape_enclosing_rect = tk.BooleanVar()
+    is_show_shape_enclosing_rect.set(False)
+    is_show_shape_enclosing_rect.trace("w", lambda name, index, mode, sv=is_show_shape_enclosing_rect: draw_image(canvas, root))
 
     menu = tk.Menu(window)
     window.config(menu=menu)
@@ -407,6 +458,7 @@ def main():
     menu.add_cascade(label="Options", menu=optionsmenu)
     optionsmenu.add_command(label="Reset", command=reset)
     optionsmenu.add_checkbutton(label="Click to position", variable=is_click_to_position, onvalue=True, offvalue=False)
+    optionsmenu.add_checkbutton(label="Show shape enclosing rectangle", variable=is_show_shape_enclosing_rect, onvalue=True, offvalue=False)
     
 
     canvas.bind("<Button-1>", mouse_click)
@@ -419,7 +471,7 @@ def main():
         canvas.bind("<Button-5>", scroll_down)
 
     # calculate the shape's center
-    shape_center = calc_shape_center(root.findall('Shape'))
+    shape_center, enclosing_rect = calc_shape_center_and_enclosing_rect(root.findall('Shape'))
 
     # center the shape to the center of the window
     set_translate_X(WINDOW_WIDTH/2)
