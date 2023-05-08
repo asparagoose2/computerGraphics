@@ -18,11 +18,13 @@ import numpy as np
 from tkinter import Canvas
 from xml.etree.ElementTree import Element, ElementTree
 from tkinter import messagebox as mb
+from tkinter import filedialog as fd
 
 HELP_MESSAGE = '''Use the mouse to drag the image around or click the position you want the image to be at.
 Use the mouse wheel to zoom in and out
 Use the slider to rotate the image'''
 HELP_TITLE = "Help"
+DEFAULT_FILE = "house.svg"
 
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
@@ -30,6 +32,7 @@ WINDOW_HEIGHT = 600
 canvas: Canvas = None
 root: Element = None
 window: tk.Tk = None
+slider: tk.Scale = None
 
 scale = 1
 angle = 0
@@ -263,9 +266,66 @@ def mouse_wheel(event: tk.Event):
     else:
         print("Unknown mouse wheel event")
 
+def calc_shape_center(shapes):
+    vertices = []
+    for shape_elem in shapes:
+        shape_type = shape_elem.attrib['type']
+        shape_properties = shape_elem.attrib
+
+        if shape_type == 'circle':
+            c, r = parse_circle(shape_properties)
+            vertices.append(c)
+
+        elif shape_type == 'line':
+            p1,p2 = parse_line(shape_properties)
+            vertices.append(p1)
+            vertices.append(p2)
+
+        else:
+            error("Shape type " + shape_type + " is not supported")
+
+    return np.mean(vertices, axis=0)
+
+
+def load_file():
+    global root
+    global canvas
+    global window
+    global scale, angle, translate_X, translate_Y, shape_center, transformation_matrix
+
+    filename = fd.askopenfilename(title="Select SVG file", filetypes=(("svg files", "*.svg"), ("all files", "*.*")))
+    if filename is None or filename == () or filename == "":
+        return
+
+    # Load and parse the SVG-like file
+    tree: ElementTree = ET.parse(filename)
+    root = tree.getroot()
+
+    # Clear the canvas
+    canvas.delete("all")
+
+    # Reset the transformation matrix
+    transformation_matrix = np.identity(3)
+
+    # Reset the scale
+    scale = 1
+
+    # Reset the angle
+    angle = 0
+    slider.set(0)
+
+    # Reset the translation
+    set_translate_X(WINDOW_WIDTH/2)
+    set_translate_Y(WINDOW_HEIGHT/2)
+
+    # Reset the shape center
+    shape_center = calc_shape_center(root.findall('Shape'))
+
+    # Draw the image
+    draw_image(canvas, root)
 
 def main():
-    global root, canvas, window
+    global root, canvas, window, slider
     global scale, angle, translate_X, translate_Y, shape_center
 
     print("HW2: 2D Transformations is starting...")
@@ -273,7 +333,7 @@ def main():
 
 
     # Load and parse the SVG-like file
-    tree: ElementTree = ET.parse('file.svg')
+    tree: ElementTree = ET.parse(DEFAULT_FILE)
     root = tree.getroot()
 
     # Create a Tkinter window
@@ -298,6 +358,7 @@ def main():
     window.config(menu=menu)
     filemenu = tk.Menu(menu, tearoff=0)
     menu.add_cascade(label="File", menu=filemenu)
+    filemenu.add_command(label="Open", command=load_file)
     filemenu.add_command(label="Help", command=show_help)
     filemenu.add_separator()
     filemenu.add_command(label="Exit", command=window.quit)
@@ -311,26 +372,8 @@ def main():
         canvas.bind("<Button-4>", scroll_up)
         canvas.bind("<Button-5>", scroll_down)
 
-    vertices = []
-
     # calculate the shape's center
-    for shape_elem in root.findall('Shape'):
-        shape_type = shape_elem.attrib['type']
-        shape_properties = shape_elem.attrib
-
-        if shape_type == 'circle':
-            c, r = parse_circle(shape_properties)
-            vertices.append(c)
-
-        elif shape_type == 'line':
-            p1,p2 = parse_line(shape_properties)
-            vertices.append(p1)
-            vertices.append(p2)
-
-        else:
-            error("Shape type " + shape_type + " is not supported")
-
-    shape_center = np.mean(vertices, axis=0)
+    shape_center = calc_shape_center(root.findall('Shape'))
 
     # center the shape to the center of the window
     set_translate_X(WINDOW_WIDTH/2)
