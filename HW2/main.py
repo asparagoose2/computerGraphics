@@ -40,6 +40,7 @@ translate_X = 0
 translate_Y = 0
 
 is_windows = hasattr(sys, 'getwindowsversion')
+is_click_to_position: tk.BooleanVar = None
 
 shape_center = (0,0)
 transformation_matrix = np.eye(3)
@@ -235,8 +236,9 @@ def update_screen():
     draw_image(canvas, root)
 
 def mouse_click(event):
-    set_translate(event.x, event.y)
-    update_screen()
+    if is_click_to_position.get():
+        set_translate(event.x, event.y)
+        update_screen()
 
 def mouse_drag(event):
     set_translate(event.x, event.y)
@@ -324,9 +326,35 @@ def load_file():
     # Draw the image
     draw_image(canvas, root)
 
+def reset():
+    global canvas
+    global window
+    global scale, angle, translate_X, translate_Y, shape_center, transformation_matrix
+
+    # Clear the canvas
+    canvas.delete("all")
+
+    # Reset the transformation matrix
+    transformation_matrix = np.identity(3)
+
+    # Reset the scale
+    scale = 1
+
+    # Reset the angle
+    angle = 0
+    slider.set(0)
+
+    # Reset the translation
+    set_translate_X(WINDOW_WIDTH/2)
+    set_translate_Y(WINDOW_HEIGHT/2)
+
+    # Draw the image
+    draw_image(canvas, root)
+
 def main():
     global root, canvas, window, slider
     global scale, angle, translate_X, translate_Y, shape_center
+    global is_click_to_position
 
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
@@ -354,6 +382,9 @@ def main():
     # Show welcome message
     mb.showinfo("Welcome", "Welcome to our vector image viewer!\n" + HELP_MESSAGE)
 
+    is_click_to_position = tk.BooleanVar()
+    is_click_to_position.set(True)
+
     menu = tk.Menu(window)
     window.config(menu=menu)
     filemenu = tk.Menu(menu, tearoff=0)
@@ -362,6 +393,11 @@ def main():
     filemenu.add_command(label="Help", command=show_help)
     filemenu.add_separator()
     filemenu.add_command(label="Exit", command=window.quit)
+    optionsmenu = tk.Menu(menu, tearoff=0)
+    menu.add_cascade(label="Options", menu=optionsmenu)
+    optionsmenu.add_command(label="Reset", command=reset)
+    optionsmenu.add_checkbutton(label="Click to position", variable=is_click_to_position, onvalue=True, offvalue=False)
+    
 
     canvas.bind("<Button-1>", mouse_click)
     canvas.bind("<Button1-Motion>", mouse_drag)
