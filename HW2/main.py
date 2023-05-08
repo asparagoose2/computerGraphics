@@ -19,8 +19,13 @@ from tkinter import Canvas
 from xml.etree.ElementTree import Element, ElementTree
 from tkinter import messagebox as mb
 
-WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 800
+HELP_MESSAGE = '''Use the mouse to drag the image around or click the position you want the image to be at.
+Use the mouse wheel to zoom in and out
+Use the slider to rotate the image'''
+HELP_TITLE = "Help"
+
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
 
 canvas: Canvas = None
 root: Element = None
@@ -248,8 +253,7 @@ def handle_slider(event):
     update_screen()
 
 def show_help():
-    print("Help")
-    mb.showinfo("Help", "Use the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
+    mb.showinfo(HELP_TITLE, HELP_MESSAGE)
 
 def mouse_wheel(event: tk.Event):
     if event.delta > 0 or event.num == 4:
@@ -274,6 +278,8 @@ def main():
 
     # Create a Tkinter window
     window = tk.Tk()
+    # disable resizing the GUI
+    window.resizable(False, False)
 
     # Set the window title
     window.title("HW2: 2D Transformations   ·   Ofir & Shoval & Koral")
@@ -286,9 +292,7 @@ def main():
     slider_label.pack()
 
     # Show welcome message
-    mb.showinfo("Welcome", "Welcome to our vector image viewer!\nUse the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
-    
-
+    mb.showinfo("Welcome", "Welcome to our vector image viewer!\n" + HELP_MESSAGE)
 
     menu = tk.Menu(window)
     window.config(menu=menu)
@@ -300,6 +304,7 @@ def main():
 
     canvas.bind("<Button-1>", mouse_click)
     canvas.bind("<Button1-Motion>", mouse_drag)
+
     if is_windows:
         canvas.bind("<MouseWheel>", mouse_wheel)
     else:
@@ -324,7 +329,6 @@ def main():
 
         else:
             error("Shape type " + shape_type + " is not supported")
-
 
     shape_center = np.mean(vertices, axis=0)
 
