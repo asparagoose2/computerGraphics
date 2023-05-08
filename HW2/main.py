@@ -19,8 +19,8 @@ from tkinter import Canvas
 from xml.etree.ElementTree import Element, ElementTree
 from tkinter import messagebox as mb
 
-WINDOW_WIDTH = 1800
-WINDOW_HEIGHT = 1200
+WINDOW_WIDTH = 600
+WINDOW_HEIGHT = 800
 
 canvas: Canvas = None
 root: Element = None
