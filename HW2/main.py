@@ -11,7 +11,7 @@
     At:
     - Shenkar College of Engineering and Design
 '''
-
+import sys
 import tkinter as tk
 import xml.etree.ElementTree as ET
 import numpy as np
@@ -30,6 +30,8 @@ scale = 1
 angle = 0
 translate_X = 0
 translate_Y = 0
+
+is_windows = hasattr(sys, 'getwindowsversion')
 
 shape_center = (0,0)
 transformation_matrix = np.eye(3)
@@ -249,6 +251,14 @@ def show_help():
     print("Help")
     mb.showinfo("Help", "Use the mouse to drag the image around or click the position you wat the image to be at\nUse the mouse wheel to zoom in and out\nUse the slider to rotate the image")
 
+def mouse_wheel(event: tk.Event):
+    if event.delta > 0 or event.num == 4:
+        scroll_up(event)
+    elif event.delta < 0 or event.num == 5:
+        scroll_down(event)
+    else:
+        print("Unknown mouse wheel event")
+
 
 def main():
     global root, canvas, window
@@ -290,8 +300,11 @@ def main():
 
     canvas.bind("<Button-1>", mouse_click)
     canvas.bind("<Button1-Motion>", mouse_drag)
-    canvas.bind("<Button-4>", scroll_up)
-    canvas.bind("<Button-5>", scroll_down)
+    if is_windows:
+        canvas.bind("<MouseWheel>", mouse_wheel)
+    else:
+        canvas.bind("<Button-4>", scroll_up)
+        canvas.bind("<Button-5>", scroll_down)
 
     vertices = []
 
