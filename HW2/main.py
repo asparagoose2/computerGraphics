@@ -39,16 +39,43 @@ scale = 1
 angle = 0
 translate_X = 0
 translate_Y = 0
-mirror = True
+mirror: tk.BooleanVar = None
 
 is_windows = hasattr(sys, 'getwindowsversion')
 is_click_to_position: tk.BooleanVar = None
 is_show_shape_enclosing_rect: tk.BooleanVar = None
 last_click_position = (0,0)
 
+TOP_RIGHT = 0
+TOP_LEFT = 1
+BOTTOM_LEFT = 2
+BOTTOM_RIGHT = 3
+X = 0
+Y = 1
 shape_center = (0,0)
-enclosing_rect = []
+enclosing_rect = [] # 4 points [top-right, top-left, bottom-left, bottom-right]
+transformed_enclosing_rect = []
+crop_rect = []
 transformation_matrix = np.eye(3)
+
+def update_enclosing_rect():
+    global enclosing_rect
+    global transformation_matrix
+    global shape_center
+    transformed_enclosing_rect.clear()
+    for point in enclosing_rect:
+        transformed_point = apply_matrix(transformation_matrix, point)
+        # round up
+        transformed_enclosing_rect.append(transformed_point)
+    transformed_enclosing_rect[TOP_RIGHT][X] = math.ceil(transformed_enclosing_rect[TOP_RIGHT][X])
+    transformed_enclosing_rect[TOP_RIGHT][Y] = math.floor(transformed_enclosing_rect[TOP_RIGHT][Y])
+    transformed_enclosing_rect[TOP_LEFT][X] = math.floor(transformed_enclosing_rect[TOP_LEFT][X])
+    transformed_enclosing_rect[TOP_LEFT][Y] = math.floor(transformed_enclosing_rect[TOP_LEFT][Y])
+    transformed_enclosing_rect[BOTTOM_LEFT][X] = math.floor(transformed_enclosing_rect[BOTTOM_LEFT][X])
+    transformed_enclosing_rect[BOTTOM_LEFT][Y] = math.ceil(transformed_enclosing_rect[BOTTOM_LEFT][Y])
+    transformed_enclosing_rect[BOTTOM_RIGHT][X] = math.ceil(transformed_enclosing_rect[BOTTOM_RIGHT][X])
+    transformed_enclosing_rect[BOTTOM_RIGHT][Y] = math.ceil(transformed_enclosing_rect[BOTTOM_RIGHT][Y])
+
 
 def update_transformation_matrix():
     global transformation_matrix
@@ -61,10 +88,11 @@ def update_transformation_matrix():
     # apply vertical mirrror
     # transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]]))
     # apply horizontal mirrror
-    if mirror:
+    if mirror.get():
         transformation_matrix = np.matmul(transformation_matrix, np.array([[-1, 0, 0], [0, 1, 0], [0, 0, 1]]))
     # Apply translation offset to the shape's center (caused by rotation)
     transformation_matrix = np.matmul(transformation_matrix, np.array([[1, 0, -shape_center[0]], [0, 1, -shape_center[1]], [0, 0, 1]]))
+    update_enclosing_rect()
 
 def set_scale(new_scale):
     global scale
@@ -177,7 +205,145 @@ def parse_line(shape_properties: dict):
 
     return (x1,y1),(x2,y2)
 
-def draw_line(canvas: Canvas, p1, p2, shape_properties):
+def cohen_sutherland_clip(x_min, y_min, x_max, y_max, point1, point2):
+    # Define the region codes for the line endpoints
+    INSIDE = 0  # Both endpoints are inside the clipping window
+    LEFT = 1    # Bit 1: x-coordinate is to the left of the clipping window
+    RIGHT = 2   # Bit 2: x-coordinate is to the right of the clipping window
+    BOTTOM = 4  # Bit 3: y-coordinate is below the clipping window
+    TOP = 8     # Bit 4: y-coordinate is above the clipping window
+
+    # print("x_min: " + str(x_min))
+    # print("y_min: " + str(y_min))
+    # print("x_max: " + str(x_max))
+    # print("y_max: " + str(y_max))
+    # print("point1: " + str(point1))
+    # print("point2: " + str(point2))
+
+    # Compute the region codes for a point
+    def compute_region_code(x, y):
+        code = INSIDE
+        if x < x_min:
+            code |= LEFT
+        elif x > x_max:
+            code |= RIGHT
+        if y < y_min:
+            code |= BOTTOM
+        elif y > y_max:
+            code |= TOP
+        return code
+
+    # Extract the coordinates from the points
+    x1, y1 = point1
+    x2, y2 = point2
+
+    # Compute the region codes for the line endpoints
+    code1 = compute_region_code(x1, y1)
+    code2 = compute_region_code(x2, y2)
+
+    # print("code1: " + str(code1))
+    # print("code2: " + str(code2))
+
+    # Clip the line against the clipping window
+    while True:
+        if code1 == 0 and code2 == 0:
+            # Both endpoints are inside the clipping window
+            return point1, point2
+        elif code1 & code2 != 0:
+            # Both endpoints are outside the same region; the line is completely outside
+            return None, None
+        else:
+            # At least one endpoint is outside the clipping window; clip the line
+            x = 0
+            y = 0
+            code = code1 if code1 != 0 else code2
+            if code & TOP != 0:
+                x = x1 + (x2 - x1) * (y_max - y1) / (y2 - y1)
+                y = y_max
+            elif code & BOTTOM != 0:
+                x = x1 + (x2 - x1) * (y_min - y1) / (y2 - y1)
+                y = y_min
+            elif code & RIGHT != 0:
+                y = y1 + (y2 - y1) * (x_max - x1) / (x2 - x1)
+                x = x_max
+            elif code & LEFT != 0:
+                y = y1 + (y2 - y1) * (x_min - x1) / (x2 - x1)
+                x = x_min
+
+            if code == code1:
+                point1 = (x, y)
+                code1 = compute_region_code(x, y)
+            else:
+                point2 = (x, y)
+                code2 = compute_region_code(x, y)
+
+    
+
+def crop_line(p1, p2):
+    '''
+    Crop a line if it is outside the enclosing rectangle
+    :param p1: The first point of the line
+    :param p2: The second point of the line
+    :return: The cropped line
+    '''
+    print(transformed_enclosing_rect)
+    
+
+
+    # Crop the line if it is outside the enclosing rectangle
+    if p1[0] < transformed_enclosing_rect[0][0]:
+        p1 = (transformed_enclosing_rect[0][0], p1[1])
+    if p1[0] > transformed_enclosing_rect[1][0]:
+        p1 = (transformed_enclosing_rect[1][0], p1[1])
+    if p1[1] < transformed_enclosing_rect[0][1]:
+        p1 = (p1[0], transformed_enclosing_rect[0][1])
+    if p1[1] > transformed_enclosing_rect[1][1]:
+        p1 = (p1[0], transformed_enclosing_rect[1][1])
+
+
+        
+def line_is_not_in_enclosing_rect(p1, p2):
+    '''
+    Check if a line is not in the enclosing rectangle
+    :param p1: The first point of the line
+    :param p2: The second point of the line
+    :return: True if the line is not in the enclosing rectangle, False otherwise
+    '''
+    if p1[0] > transformed_enclosing_rect[TOP_RIGHT][0] and p2[0] > transformed_enclosing_rect[TOP_RIGHT][0]:
+        print("1")
+        return True
+    if p1[0] < transformed_enclosing_rect[BOTTOM_LEFT][0] and p2[0] < transformed_enclosing_rect[BOTTOM_LEFT][0]:
+        print("2")
+        return True
+    if p1[1] < transformed_enclosing_rect[TOP_RIGHT][1] and p2[1] < transformed_enclosing_rect[TOP_RIGHT][1]:
+        print("3")
+        return True
+    if p1[1] > transformed_enclosing_rect[BOTTOM_LEFT][1] and p2[1] > transformed_enclosing_rect[BOTTOM_LEFT][1]:
+        print("4")
+        return True
+    
+    return False
+    
+def line_is_partially_outside_enclosing_rect(p1, p2):
+    '''
+    Check if a line is partially outside the enclosing rectangle
+    :param p1: The first point of the line
+    :param p2: The second point of the line
+    :return: True if the line is partially outside the enclosing rectangle, False otherwise
+    '''
+    if p1[X] > transformed_enclosing_rect[TOP_RIGHT][X] or p2[X] > transformed_enclosing_rect[TOP_RIGHT][X]:
+        return True
+    if p1[X] < transformed_enclosing_rect[BOTTOM_LEFT][X] or p2[X] < transformed_enclosing_rect[BOTTOM_LEFT][X]:
+        return True
+    if p1[Y] < transformed_enclosing_rect[TOP_RIGHT][Y] or p2[Y] < transformed_enclosing_rect[TOP_RIGHT][Y]:
+        return True
+    if p1[Y] > transformed_enclosing_rect[BOTTOM_LEFT][Y] or p2[Y] > transformed_enclosing_rect[BOTTOM_LEFT][Y]:
+        return True
+    return False
+
+
+
+def draw_line(canvas: Canvas, p1, p2, shape_properties, ignore_crop=False):
     '''
     Draw a line on the canvas
     :param canvas: The canvas to draw on
@@ -197,6 +363,21 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties):
     else:
         width = float(width) * scale
 
+    
+
+    # if not ignore_crop:
+        # p1, p2 = cohen_sutherland_clip(enclosing_rect[TOP_LEFT][X],enclosing_rect[TOP_LEFT][Y],enclosing_rect[BOTTOM_RIGHT][X],enclosing_rect[BOTTOM_RIGHT][Y],p1,p2)
+        # if line_is_not_in_enclosing_rect(p1, p2):
+        #     print("Not drawing line")
+        #     return
+        # elif line_is_partially_outside_enclosing_rect(p1, p2):
+        #     print("Cropping line")
+        #     p1, p2 = crop_line(p1, p2)
+        #     print(p1, p2)
+        #     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill="red", width=width, dash=dotted)
+        #     return
+
+    
     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width, dash=dotted)
 
 def draw_image(canvas: Canvas, root: Element):
@@ -227,16 +408,21 @@ def draw_image(canvas: Canvas, root: Element):
                 start = float(start)
                 extent = float(extent)
                 # adjust the start angle according to the roation angle
-                start = start - angle 
-                if mirror:
+                if mirror.get():
                     # adjust the extent angle according to the roation angle
                     extent = -extent
-                    start = 180 - start
+                    start = 180 - start + angle
+
+                else:
+                    start = start - angle 
                 
             draw_circle(canvas, c, r, shape_properties, start, extent)
         
         elif shape_type == 'line':
             p1,p2 = parse_line(shape_properties)
+            p1, p2 = cohen_sutherland_clip(enclosing_rect[TOP_LEFT][X],enclosing_rect[TOP_LEFT][Y],enclosing_rect[BOTTOM_RIGHT][X],enclosing_rect[BOTTOM_RIGHT][Y],p1,p2)
+            if p1 is None or p2 is None:
+                continue
             # apply the transformation matrix to the two points
             p1 = apply_matrix(transformation_matrix, p1)
             p2 = apply_matrix(transformation_matrix, p2)
@@ -246,14 +432,14 @@ def draw_image(canvas: Canvas, root: Element):
             error("Shape type " + shape_type + " is not supported")
 
     if is_show_shape_enclosing_rect.get():
-        p1 = apply_matrix(transformation_matrix, enclosing_rect[0])
-        p2 = apply_matrix(transformation_matrix, enclosing_rect[1])
-        p3 = apply_matrix(transformation_matrix, enclosing_rect[2])
-        p4 = apply_matrix(transformation_matrix, enclosing_rect[3])
-        draw_line(canvas, p1, p2, {"fill": "red", "width": 1, "dotted": (2, 2)})
-        draw_line(canvas, p2, p3, {"fill": "red", "width": 1, "dotted": (2, 2)})
-        draw_line(canvas, p3, p4, {"fill": "red", "width": 1, "dotted": (2, 2)})
-        draw_line(canvas, p4, p1, {"fill": "red", "width": 1, "dotted": (2, 2)})
+        # p1 = apply_matrix(transformation_matrix, enclosing_rect[0])
+        # p2 = apply_matrix(transformation_matrix, enclosing_rect[1])
+        # p3 = apply_matrix(transformation_matrix, enclosing_rect[2])
+        # p4 = apply_matrix(transformation_matrix, enclosing_rect[3])
+        draw_line(canvas, transformed_enclosing_rect[0], transformed_enclosing_rect[1], {"fill": "red", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, transformed_enclosing_rect[1], transformed_enclosing_rect[2], {"fill": "red", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, transformed_enclosing_rect[2], transformed_enclosing_rect[3], {"fill": "red", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, transformed_enclosing_rect[3], transformed_enclosing_rect[0], {"fill": "red", "width": 1, "dotted": (2, 2)})
         
 
 
@@ -338,9 +524,15 @@ def calc_shape_center_and_enclosing_rect(shapes):
     min_y = round(min_y)
     max_y = round(max_y)
 
-    border = [(min_x, min_y), (max_x, min_y), (max_x, max_y), (min_x, max_y)]
-    
+    border = [(),(),(),()]
+    border[TOP_RIGHT] = (max_x, min_y)
+    border[TOP_LEFT] = (min_x, min_y)
+    border[BOTTOM_LEFT] = (min_x, max_y)
+    border[BOTTOM_RIGHT] = (max_x, max_y)
 
+    # border = [(min_x, min_y), (max_x, min_y), (max_x, max_y), (min_x, max_y)]
+
+    
     return np.mean(vertices, axis=0), border
 
 
@@ -400,8 +592,6 @@ def reset():
     angle = 0
     slider.set(0)
 
-
-
     # Reset the translation
     set_translate_X(WINDOW_WIDTH/2)
     set_translate_Y(WINDOW_HEIGHT/2)
@@ -409,10 +599,14 @@ def reset():
     # Draw the image
     draw_image(canvas, root)
 
+def on_mirror_change():
+    update_transformation_matrix()
+    update_screen()
+
 def main():
     global root, canvas, window, slider
     global scale, angle, translate_X, translate_Y, shape_center, enclosing_rect
-    global is_click_to_position, is_show_shape_enclosing_rect
+    global is_click_to_position, is_show_shape_enclosing_rect, mirror
 
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
@@ -445,6 +639,9 @@ def main():
     is_show_shape_enclosing_rect = tk.BooleanVar()
     is_show_shape_enclosing_rect.set(False)
     is_show_shape_enclosing_rect.trace("w", lambda name, index, mode, sv=is_show_shape_enclosing_rect: update_screen())
+    mirror = tk.BooleanVar()
+    mirror.set(False)
+    mirror.trace("w", lambda name, index, mode, sv=mirror: on_mirror_change())
 
     menu = tk.Menu(window)
     window.config(menu=menu)
@@ -459,6 +656,7 @@ def main():
     optionsmenu.add_command(label="Reset", command=reset)
     optionsmenu.add_checkbutton(label="Click to position", variable=is_click_to_position, onvalue=True, offvalue=False)
     optionsmenu.add_checkbutton(label="Show shape enclosing rectangle", variable=is_show_shape_enclosing_rect, onvalue=True, offvalue=False)
+    optionsmenu.add_checkbutton(label="Mirror", variable=mirror, onvalue=True, offvalue=False)
     
 
     canvas.bind("<Button-1>", mouse_click)
