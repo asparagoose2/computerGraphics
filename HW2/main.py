@@ -444,7 +444,7 @@ def main():
     is_click_to_position.set(True)
     is_show_shape_enclosing_rect = tk.BooleanVar()
     is_show_shape_enclosing_rect.set(False)
-    is_show_shape_enclosing_rect.trace("w", lambda name, index, mode, sv=is_show_shape_enclosing_rect: draw_image(canvas, root))
+    is_show_shape_enclosing_rect.trace("w", lambda name, index, mode, sv=is_show_shape_enclosing_rect: update_screen())
 
     menu = tk.Menu(window)
     window.config(menu=menu)
