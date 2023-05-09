@@ -411,7 +411,7 @@ def draw_image(canvas: Canvas, root: Element):
                 if mirror.get():
                     # adjust the extent angle according to the roation angle
                     extent = -extent
-                    start = 180 - start + angle
+                    start = 180 - start - angle
 
                 else:
                     start = start - angle 
@@ -492,6 +492,26 @@ def mouse_wheel(event: tk.Event):
     else:
         print("Unknown mouse wheel event")
 
+def calculate_enclosing_rectangle(center_x, center_y, radius, start_angle, extent):
+    # Convert angles from degrees to radians
+    start_angle_rad = math.radians(start_angle)
+    end_angle_rad = math.radians(start_angle + extent)
+
+    # Calculate the coordinates of the four points of the enclosing rectangle
+    x1 = center_x + radius * math.cos(start_angle_rad)
+    y1 = center_y + radius * math.sin(start_angle_rad)
+
+    x2 = center_x + radius * math.cos(end_angle_rad)
+    y2 = center_y + radius * math.sin(end_angle_rad)
+
+    x_min = min(x1, x2)
+    y_min = min(y1, y2)
+    x_max = max(x1, x2)
+    y_max = max(y1, y2)
+
+    return (x1,y1), (x2,y2)
+
+
 def calc_shape_center_and_enclosing_rect(shapes):
     vertices = []
     for shape_elem in shapes:
@@ -500,10 +520,20 @@ def calc_shape_center_and_enclosing_rect(shapes):
 
         if shape_type == 'circle':
             c, r = parse_circle(shape_properties)
-            vertices.append((c[0] - r, c[1] - r))
-            vertices.append((c[0] + r, c[1] - r))
-            vertices.append((c[0] + r, c[1] + r))
-            vertices.append((c[0] - r, c[1] + r))
+            start = shape_properties.get('start_angle')
+            extent = shape_properties.get('extent')
+            if start is not None and extent is not None:
+                p1,p2 = calculate_enclosing_rectangle(int(c[0]), int(c[1]), int(r), int(start), int(extent))
+                print(p1,p2)
+                vertices.append(p1)
+                vertices.append(p2)
+                # vertices.append(p3)
+                # vertices.append(p4)
+            else:
+                vertices.append((c[0] - r, c[1] - r))
+                vertices.append((c[0] + r, c[1] - r))
+                vertices.append((c[0] + r, c[1] + r))
+                vertices.append((c[0] - r, c[1] + r))
 
         elif shape_type == 'line':
             p1,p2 = parse_line(shape_properties)
