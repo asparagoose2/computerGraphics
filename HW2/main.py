@@ -11,6 +11,7 @@
     At:
     - Shenkar College of Engineering and Design
 '''
+import copy
 import math
 import sys
 import tkinter as tk
@@ -45,6 +46,12 @@ is_windows = hasattr(sys, 'getwindowsversion')
 is_click_to_position: tk.BooleanVar = None
 is_show_shape_enclosing_rect: tk.BooleanVar = None
 last_click_position = (0,0)
+is_crop = False
+crop_side = 0
+TOP_SIDE = 0
+LEFT_SIDE = 1
+BOTTOM_SIDE = 2
+RIGHT_SIDE = 3
 
 TOP_RIGHT = 0
 TOP_LEFT = 1
@@ -53,6 +60,7 @@ BOTTOM_RIGHT = 3
 X = 0
 Y = 1
 shape_center = (0,0)
+original_enclosing_rect = []
 enclosing_rect = [] # 4 points [top-right, top-left, bottom-left, bottom-right]
 transformed_enclosing_rect = []
 crop_rect = []
@@ -181,7 +189,7 @@ def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
     else:
         stroke_width = float(stroke_width) * scale
 
-    if start is not None and extent is not None:
+    if start is not None and extent is not None and start != 0 and extent != 360:
         canvas.create_arc(c[0]-r, c[1]-r, c[0]+r, c[1]+r, start=start, extent=extent, style=tk.ARC, width=stroke_width, outline=stroke)
     else:
         canvas.create_oval(c[0]-r, c[1]-r, c[0]+r, c[1]+r,fill=fill, outline=stroke, width=stroke_width)
@@ -380,6 +388,42 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties, ignore_crop=False):
     
     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width, dash=dotted)
 
+def crop_circle(c, r, start, extent):
+    '''
+    Crop a circle if it is outside the enclosing rectangle
+    :param c: The center of the circle
+    :param r: The radius of the circle
+    :param start: The start angle of the circle
+    :param extent: The extent of the circle
+    :return: The cropped circle
+    '''
+    if start is None:
+        start = 0
+    if extent is None:
+        extent = 360
+    # Crop the circle if it is outside the enclosing rectangle
+    should_crop = False
+
+    if c[X] - r < transformed_enclosing_rect[BOTTOM_LEFT][X]:
+        max_left_angle = math.asin((transformed_enclosing_rect[BOTTOM_LEFT][X] - c[X] + r) / r)
+        max_top_left_angle = math.pi - max_left_angle
+        max_bottom_left_angle = math.pi + max_left_angle
+        temp_extent = math.degrees(max_top_left_angle) - float(start)
+        if temp_extent < float(extent):
+            extent = temp_extent
+        should_crop = True
+    if c[X] + r > transformed_enclosing_rect[TOP_RIGHT][X]:
+        should_crop = True
+    if c[Y] - r < transformed_enclosing_rect[TOP_RIGHT][Y]:
+        should_crop = True
+    if c[Y] + r > transformed_enclosing_rect[BOTTOM_LEFT][Y]:
+        should_crop = True
+        
+
+
+
+    return start, extent
+
 def draw_image(canvas: Canvas, root: Element):
     '''
     Draw the image on the canvas
@@ -402,9 +446,11 @@ def draw_image(canvas: Canvas, root: Element):
             
             start = shape_properties.get('start_angle')
             extent = shape_properties.get('extent')
+            
+            # start, extent = crop_circle(c, r, start, extent)
 
             # apply the transformation matrix to the start and extent angles
-            if start is not None and extent is not None:
+            if start is not None and extent is not None and start != 0 and extent != 360:
                 start = float(start)
                 extent = float(extent)
                 # adjust the start angle according to the roation angle
@@ -451,16 +497,128 @@ def update_screen():
     canvas.delete("all")
     draw_image(canvas, root)
 
+def point_is_on_line(point, p1, p2):
+    '''
+    Check if a point is on a line
+    :param point: The point to check
+    :param p1: The first point of the line
+    :param p2: The second point of the line
+    :return: True if the point is on the line, False otherwise
+    '''
+    # calculate the distance between the point and a line
+
+    d = np.linalg.norm(np.cross(p2-p1, p1-point))/np.linalg.norm(p2-p1)
+    print(d)
+    return abs(d) < 5
+
+
+def point_is_on_polygon_border(point, polygon):
+    '''
+    Check if a point is on the border of a polygon
+    :param point: The point to check
+    :param polygon: The polygon to check
+    :return: True if the point is on the border of the polygon, False otherwise
+    '''
+    if point_is_on_line(point, polygon[0], polygon[1]):
+        return True, TOP_SIDE
+    if point_is_on_line(point, polygon[1], polygon[2]):
+        return True, LEFT_SIDE
+    if point_is_on_line(point, polygon[2], polygon[3]):
+        return True, BOTTOM_SIDE
+    if point_is_on_line(point, polygon[3], polygon[0]):
+        return True, RIGHT_SIDE
+    
+    return False, -1
+
+def clicked_on_enclosing_rect(x, y):
+    '''
+    Check if the user clicked on the enclosing rect
+    :param x: The x coordinate of the click
+    :param y: The y coordinate of the click
+    :return: True if the user clicked on the enclosing rect, False otherwise
+    '''
+    global transformed_enclosing_rect
+    if is_show_shape_enclosing_rect.get():
+        return point_is_on_polygon_border((x, y), transformed_enclosing_rect)
+    return False, -1
+
+def update_crop_rect(x, y, side):
+    '''
+    Update the crop rect according to the mouse position
+    :param x: The x coordinate of the mouse
+    :param y: The y coordinate of the mouse
+    :return: None
+    '''
+    global crop_rect, last_click_position, crop_side, enclosing_rect
+    # calculate distance from side
+    # y_diff = 0
+    # x_diff = 0
+    # if side == TOP_SIDE:
+    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[TOP_LEFT], transformed_enclosing_rect[TOP_LEFT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[TOP_LEFT])
+    #     print(d)
+    #     y_diff = d
+    # elif side == LEFT_SIDE:
+    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[BOTTOM_LEFT]-transformed_enclosing_rect[TOP_LEFT], transformed_enclosing_rect[TOP_LEFT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[BOTTOM_LEFT]-transformed_enclosing_rect[TOP_LEFT])
+    #     x_diff = d
+    # elif side == BOTTOM_SIDE:
+    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[BOTTOM_RIGHT]-transformed_enclosing_rect[BOTTOM_LEFT], transformed_enclosing_rect[BOTTOM_LEFT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[BOTTOM_RIGHT]-transformed_enclosing_rect[BOTTOM_LEFT])
+    #     y_diff = -d
+    # elif side == RIGHT_SIDE:
+    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[BOTTOM_RIGHT], transformed_enclosing_rect[BOTTOM_RIGHT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[BOTTOM_RIGHT])
+    #     x_diff = -d
+    y_diff = y - last_click_position[Y]
+    x_diff = x - last_click_position[X]
+    # adjust distance according to the angle of the enclosing rect
+    if side == TOP_SIDE or side == BOTTOM_SIDE:
+        y_diff = y_diff * math.cos(angle)
+    elif side == LEFT_SIDE or side == RIGHT_SIDE:
+        x_diff = x_diff * math.cos(angle)
+
+    crop_rect = copy.deepcopy(enclosing_rect)
+    if crop_side == TOP_SIDE:
+        crop_rect[TOP_LEFT] = (crop_rect[TOP_LEFT][X], crop_rect[TOP_LEFT][Y] + y_diff)
+        crop_rect[TOP_RIGHT] = (crop_rect[TOP_RIGHT][X], crop_rect[TOP_RIGHT][Y] + y_diff)
+    elif crop_side == LEFT_SIDE:
+        crop_rect[TOP_LEFT] = (crop_rect[TOP_LEFT][X] + x_diff, crop_rect[TOP_LEFT][Y])
+        crop_rect[BOTTOM_LEFT] = (crop_rect[BOTTOM_LEFT][X] + x_diff, crop_rect[BOTTOM_LEFT][Y])
+    elif crop_side == BOTTOM_SIDE:
+        crop_rect[BOTTOM_LEFT] = (crop_rect[BOTTOM_LEFT][X], crop_rect[BOTTOM_LEFT][Y] + y_diff)
+        crop_rect[BOTTOM_RIGHT] = (crop_rect[BOTTOM_RIGHT][X], crop_rect[BOTTOM_RIGHT][Y] + y_diff)
+    elif crop_side == RIGHT_SIDE:
+        crop_rect[TOP_RIGHT] = (crop_rect[TOP_RIGHT][X] + x_diff, crop_rect[TOP_RIGHT][Y])
+        crop_rect[BOTTOM_RIGHT] = (crop_rect[BOTTOM_RIGHT][X] + x_diff, crop_rect[BOTTOM_RIGHT][Y])
+    last_click_position = (x, y)
+    enclosing_rect = crop_rect
+    update_enclosing_rect()
+    update_screen()
+
+def mouse_release(event):
+    global is_crop
+    if is_crop:
+        print("Released")
+        is_crop = False
+        # update_crop_rect(event.x, event.y)
+
 def mouse_click(event):
-    global last_click_position
+    global last_click_position, is_crop, crop_side
     last_click_position = (event.x, event.y)
-    if is_click_to_position.get():
+    is_clicked_on_enclosing_rect, side = clicked_on_enclosing_rect(event.x, event.y)
+    if is_clicked_on_enclosing_rect:
+        print("Clicked on enclosing rect")
+        is_crop = True
+        crop_side = side
+    elif is_click_to_position.get():
         set_translate(event.x, event.y)
         update_screen()
         
 def mouse_drag(event):
     global last_click_position
-    if is_click_to_position.get():
+    if is_crop:
+        print("Dragging, side: " + str(crop_side))
+        update_crop_rect(event.x,event.y, crop_side)
+        last_click_position = (event.x, event.y)
+
+    elif is_click_to_position.get():
         set_translate(event.x, event.y)
     else:
         offset_point = (event.x - last_click_position[0], event.y - last_click_position[1])
@@ -607,7 +765,7 @@ def load_file():
 def reset():
     global canvas
     global window
-    global scale, angle, translate_X, translate_Y, shape_center, transformation_matrix
+    global scale, angle, translate_X, translate_Y, shape_center, transformation_matrix, enclosing_rect
 
     # Clear the canvas
     canvas.delete("all")
@@ -621,6 +779,9 @@ def reset():
     # Reset the angle
     angle = 0
     slider.set(0)
+
+    enclosing_rect = original_enclosing_rect
+    update_enclosing_rect()
 
     # Reset the translation
     set_translate_X(WINDOW_WIDTH/2)
@@ -636,7 +797,7 @@ def on_mirror_change():
 def main():
     global root, canvas, window, slider
     global scale, angle, translate_X, translate_Y, shape_center, enclosing_rect
-    global is_click_to_position, is_show_shape_enclosing_rect, mirror
+    global is_click_to_position, is_show_shape_enclosing_rect, mirror, original_enclosing_rect
 
     print("HW2: 2D Transformations is starting...")
     print("By: Ofir Duchvonov & Shoval Zohar & Koral Tsaba")
@@ -691,6 +852,7 @@ def main():
 
     canvas.bind("<Button-1>", mouse_click)
     canvas.bind("<Button1-Motion>", mouse_drag)
+    canvas.bind("<ButtonRelease-1>", mouse_release)
 
     if is_windows:
         canvas.bind("<MouseWheel>", mouse_wheel)
@@ -700,6 +862,7 @@ def main():
 
     # calculate the shape's center
     shape_center, enclosing_rect = calc_shape_center_and_enclosing_rect(root.findall('Shape'))
+    original_enclosing_rect = enclosing_rect
 
     # center the shape to the center of the window
     set_translate_X(WINDOW_WIDTH/2)
