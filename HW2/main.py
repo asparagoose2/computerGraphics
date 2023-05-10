@@ -377,13 +377,6 @@ def cohen_sutherland_clip(x_min, y_min, x_max, y_max, point1, point2):
     BOTTOM = 4  # Bit 3: y-coordinate is below the clipping window
     TOP = 8     # Bit 4: y-coordinate is above the clipping window
 
-    # print("x_min: " + str(x_min))
-    # print("y_min: " + str(y_min))
-    # print("x_max: " + str(x_max))
-    # print("y_max: " + str(y_max))
-    # print("point1: " + str(point1))
-    # print("point2: " + str(point2))
-
     # Compute the region codes for a point
     def compute_region_code(x, y):
         code = INSIDE
@@ -404,9 +397,6 @@ def cohen_sutherland_clip(x_min, y_min, x_max, y_max, point1, point2):
     # Compute the region codes for the line endpoints
     code1 = compute_region_code(x1, y1)
     code2 = compute_region_code(x2, y2)
-
-    # print("code1: " + str(code1))
-    # print("code2: " + str(code2))
 
     # Clip the line against the clipping window
     while True:
@@ -501,21 +491,6 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties, ignore_crop=False):
         width = 1
     else:
         width = float(width) * scale
-
-    
-
-    # if not ignore_crop:
-        # p1, p2 = cohen_sutherland_clip(enclosing_rect[TOP_LEFT][X],enclosing_rect[TOP_LEFT][Y],enclosing_rect[BOTTOM_RIGHT][X],enclosing_rect[BOTTOM_RIGHT][Y],p1,p2)
-        # if line_is_not_in_enclosing_rect(p1, p2):
-        #     print("Not drawing line")
-        #     return
-        # elif line_is_partially_outside_enclosing_rect(p1, p2):
-        #     print("Cropping line")
-        #     p1, p2 = crop_line(p1, p2)
-        #     print(p1, p2)
-        #     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill="red", width=width, dash=dotted)
-        #     return
-
     
     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width, dash=dotted)
 
@@ -645,24 +620,12 @@ def update_crop_rect(x, y, side):
     :return: None
     '''
     global crop_rect, last_click_position, crop_side, enclosing_rect
-    # calculate distance from side
-    # y_diff = 0
-    # x_diff = 0
-    # if side == TOP_SIDE:
-    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[TOP_LEFT], transformed_enclosing_rect[TOP_LEFT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[TOP_LEFT])
-    #     print(d)
-    #     y_diff = d
-    # elif side == LEFT_SIDE:
-    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[BOTTOM_LEFT]-transformed_enclosing_rect[TOP_LEFT], transformed_enclosing_rect[TOP_LEFT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[BOTTOM_LEFT]-transformed_enclosing_rect[TOP_LEFT])
-    #     x_diff = d
-    # elif side == BOTTOM_SIDE:
-    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[BOTTOM_RIGHT]-transformed_enclosing_rect[BOTTOM_LEFT], transformed_enclosing_rect[BOTTOM_LEFT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[BOTTOM_RIGHT]-transformed_enclosing_rect[BOTTOM_LEFT])
-    #     y_diff = -d
-    # elif side == RIGHT_SIDE:
-    #     d = np.linalg.norm(np.cross(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[BOTTOM_RIGHT], transformed_enclosing_rect[BOTTOM_RIGHT]-(x,y)))/np.linalg.norm(transformed_enclosing_rect[TOP_RIGHT]-transformed_enclosing_rect[BOTTOM_RIGHT])
-    #     x_diff = -d
     y_diff = y - last_click_position[Y]
     x_diff = x - last_click_position[X]
+
+    if mirror.get() and (side == RIGHT_SIDE or side == LEFT_SIDE):
+        x_diff = -x_diff
+
     # adjust distance according to the angle of the enclosing rect
     if side == TOP_SIDE or side == BOTTOM_SIDE:
         y_diff = y_diff * math.cos(angle)
