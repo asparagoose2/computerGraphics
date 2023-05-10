@@ -172,10 +172,18 @@ def parse_circle(shape_properties: dict):
 
 # Function to draw a pixel on the screen
 def put_pixel(x, y, color, screen: Canvas, width):
-    if x < transformed_enclosing_rect[TOP_LEFT][X] or \
+    if (x < transformed_enclosing_rect[TOP_LEFT][X] or \
        x > transformed_enclosing_rect[TOP_RIGHT][X] or \
        y < transformed_enclosing_rect[TOP_LEFT][Y] or \
-       y > transformed_enclosing_rect[BOTTOM_LEFT][Y]:
+       y > transformed_enclosing_rect[BOTTOM_LEFT][Y]) and mirror.get() == False:
+        print(transformed_enclosing_rect[TOP_LEFT][X],x)
+        # screen.create_oval(x, y, x+1, y+1, fill=color, width=width, outline="red")
+        return
+    elif (x < transformed_enclosing_rect[TOP_RIGHT][X] or \
+       x > transformed_enclosing_rect[TOP_LEFT][X] or \
+       y < transformed_enclosing_rect[TOP_RIGHT][Y] or \
+       y > transformed_enclosing_rect[BOTTOM_RIGHT][Y]) and mirror.get() == True:
+            # screen.create_oval(x, y, x+1, y+1, fill=color, width=width, outline="blue")
         return
     # screen.create_line(x, y, x+1, y+1, fill=color, width=width)
     screen.create_oval(x, y, x+1, y+1, fill=color, width=width, outline=color)
@@ -395,31 +403,6 @@ def cohen_sutherland_clip(x_min, y_min, x_max, y_max, point1, point2):
             else:
                 point2 = (x, y)
                 code2 = compute_region_code(x, y)
-
-    
-
-def crop_line(p1, p2):
-    '''
-    Crop a line if it is outside the enclosing rectangle
-    :param p1: The first point of the line
-    :param p2: The second point of the line
-    :return: The cropped line
-    '''
-    print(transformed_enclosing_rect)
-    
-
-
-    # Crop the line if it is outside the enclosing rectangle
-    if p1[0] < transformed_enclosing_rect[0][0]:
-        p1 = (transformed_enclosing_rect[0][0], p1[1])
-    if p1[0] > transformed_enclosing_rect[1][0]:
-        p1 = (transformed_enclosing_rect[1][0], p1[1])
-    if p1[1] < transformed_enclosing_rect[0][1]:
-        p1 = (p1[0], transformed_enclosing_rect[0][1])
-    if p1[1] > transformed_enclosing_rect[1][1]:
-        p1 = (p1[0], transformed_enclosing_rect[1][1])
-
-
         
 def line_is_not_in_enclosing_rect(p1, p2):
     '''
@@ -715,7 +698,6 @@ def mouse_click(event):
     last_click_position = (event.x, event.y)
     is_clicked_on_enclosing_rect, side = clicked_on_enclosing_rect(event.x, event.y)
     if is_clicked_on_enclosing_rect:
-        print("Clicked on enclosing rect")
         is_crop = True
         crop_side = side
     elif is_click_to_position.get():
@@ -725,7 +707,6 @@ def mouse_click(event):
 def mouse_drag(event):
     global last_click_position
     if is_crop:
-        print("Dragging, side: " + str(crop_side))
         update_crop_rect(event.x,event.y, crop_side)
         last_click_position = (event.x, event.y)
 
@@ -778,6 +759,8 @@ def calculate_enclosing_rectangle(center_x, center_y, radius, start_angle, exten
     x_max = max(x1, x2)
     y_max = max(y1, y2)
 
+
+
     return (x1,y1), (x2,y2)
 
 
@@ -791,9 +774,11 @@ def calc_shape_center_and_enclosing_rect(shapes):
             c, r = parse_circle(shape_properties)
             start = shape_properties.get('start_angle')
             extent = shape_properties.get('extent')
+            width = shape_properties.get('width')
+            width = 0 if width is None else int(width)
+            r = r + width
             if start is not None and extent is not None:
                 p1,p2 = calculate_enclosing_rectangle(int(c[0]), int(c[1]), int(r), int(start), int(extent))
-                print(p1,p2)
                 vertices.append(p1)
                 vertices.append(p2)
                 # vertices.append(p3)
