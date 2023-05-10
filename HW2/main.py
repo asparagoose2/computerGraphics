@@ -170,75 +170,112 @@ def parse_circle(shape_properties: dict):
 
     return (cx,cy), r
 
+
+def is_point_inside_polygon(point, polygon):
+    x, y = point
+    num_vertices = len(polygon)
+
+    # Initialize counter for number of intersections
+    num_intersections = 0
+
+    # Iterate over each edge of the polygon
+    for i in range(num_vertices):
+        # Get the coordinates of the current vertex and the next vertex
+        x1, y1 = polygon[i]
+        x2, y2 = polygon[(i + 1) % num_vertices]
+
+        # Check if the ray from the point intersects the edge
+        if ((y1 > y) != (y2 > y)) and (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1):
+            num_intersections += 1
+
+    # If the number of intersections is odd, the point is inside the polygon
+    return num_intersections % 2 == 1
+
 # Function to draw a pixel on the screen
 def put_pixel(x, y, color, screen: Canvas, width):
-    if (x < transformed_enclosing_rect[TOP_LEFT][X] or \
-       x > transformed_enclosing_rect[TOP_RIGHT][X] or \
-       y < transformed_enclosing_rect[TOP_LEFT][Y] or \
-       y > transformed_enclosing_rect[BOTTOM_LEFT][Y]) and mirror.get() == False:
-        print(transformed_enclosing_rect[TOP_LEFT][X],x)
-        # screen.create_oval(x, y, x+1, y+1, fill=color, width=width, outline="red")
+    if is_point_inside_polygon((x,y), transformed_enclosing_rect) == False:
         return
-    elif (x < transformed_enclosing_rect[TOP_RIGHT][X] or \
-       x > transformed_enclosing_rect[TOP_LEFT][X] or \
-       y < transformed_enclosing_rect[TOP_RIGHT][Y] or \
-       y > transformed_enclosing_rect[BOTTOM_RIGHT][Y]) and mirror.get() == True:
-            # screen.create_oval(x, y, x+1, y+1, fill=color, width=width, outline="blue")
-        return
-    # screen.create_line(x, y, x+1, y+1, fill=color, width=width)
     screen.create_oval(x, y, x+1, y+1, fill=color, width=width, outline=color)
 
 def draw_arc_helper(arc_center, arc_radius, start_angle, end_angle, color, screen,width):
-    # Initialize the x and y coordinates of the first point on the circle
-    # (which is at 0 degrees) and the value of a variable called d.
-    x = 0
-    y = arc_radius
-    d = 3 - 2 * arc_radius
 
     start_angle = math.radians(start_angle)
     end_angle = math.radians(end_angle)
 
-    # Loop while x is less than or equal to y.
-    while x <= y:
+    x = 0
+    y = arc_radius
+    decision = 1 - arc_radius
+    center_x = arc_center[X]
+    center_y = arc_center[Y]
 
+    while x <= y:
+        # Calculate the angle of the current point
         current_angle = math.atan2(y, x)
-        # Plot the points of the circle using symmetry
-        # 0-45
-        if current_angle >= start_angle and current_angle <= end_angle:
-            put_pixel(arc_center[X] + y, arc_center[Y] - x, color,screen,width)
-        #  45 - 90
-        if current_angle + math.pi / 4 >= start_angle and current_angle + math.pi / 4 <= end_angle:
-            put_pixel(arc_center[X] + x, arc_center[Y] - y, color,screen,width)
-        # 90 - 135
-        if current_angle + math.pi / 2 >= start_angle and current_angle + math.pi / 2 <= end_angle:
-            put_pixel(arc_center[X] - x, arc_center[Y] - y, color,screen,width)
-        # 135 - 180
-        if current_angle + 3 * math.pi / 4 >= start_angle and current_angle + 3 * math.pi / 4 <= end_angle:
-            put_pixel(arc_center[X] - y, arc_center[Y] - x, color,screen,width)
-        # 180 - 225
-        if current_angle + math.pi >= start_angle and current_angle + math.pi <= end_angle:
-            put_pixel(arc_center[X] - y, arc_center[Y] + x, color,screen,width)
-        # 225 - 270
-        if current_angle + 5 * math.pi / 4 >= start_angle and current_angle + 5 * math.pi / 4 <= end_angle:
-            put_pixel(arc_center[X] - x, arc_center[Y] + y, color,screen,width)
-        # 270 - 315
-        if current_angle + 3 * math.pi / 2 >= start_angle and current_angle + 3 * math.pi / 2 <= end_angle:
-            put_pixel(arc_center[X] + x, arc_center[Y] + y, color,screen,width)
-        # 315 - 360
-        if current_angle + 7 * math.pi / 4 >= start_angle and current_angle + 7 * math.pi / 4 <= end_angle:
-            put_pixel(arc_center[X] + y, arc_center[Y] + x, color,screen,width)
-        
-        # Increment x by 1.
+
+        # Check if the current angle is within the specified range
+        if start_angle <= current_angle <= end_angle:
+            # Plot the points by symmetry in the first and second octants
+            put_pixel(center_x + x, center_y + y, "black",canvas,width)
+            put_pixel(center_x - x, center_y + y, "black",canvas,width)
+
+        if decision <= 0:
+            decision += 2 * x + 3
+        else:
+            decision += 2 * (x - y) + 5
+            y -= 1
         x += 1
 
-        # If d is greater than 0, decrement y by 1 and update the value of d.
-        if d > 0:
-            y -= 1
-            d = d + 4 * (x - y) + 10
+# def draw_arc_helper(arc_center, arc_radius, start_angle, end_angle, color, screen,width):
+#     # Initialize the x and y coordinates of the first point on the circle
+#     # (which is at 0 degrees) and the value of a variable called d.
+#     x = 0
+#     y = arc_radius
+#     d = 3 - 2 * arc_radius
 
-        # Otherwise, update the value of d without changing y.
-        else:
-            d = d + 4 * x + 6
+#     start_angle = math.radians(start_angle)
+#     end_angle = math.radians(end_angle)
+
+#     # Loop while x is less than or equal to y.
+#     while x <= y:
+
+#         current_angle = math.atan2(y, x)
+#         # Plot the points of the circle using symmetry
+#         # 0-45
+#         if current_angle >= start_angle and current_angle <= end_angle:
+#             put_pixel(arc_center[X] + y, arc_center[Y] - x, color,screen,width)
+#         #  45 - 90
+#         if current_angle + math.pi / 4 >= start_angle and current_angle + math.pi / 4 <= end_angle:
+#             put_pixel(arc_center[X] + x, arc_center[Y] - y, color,screen,width)
+#         # 90 - 135
+#         if current_angle + math.pi / 2 >= start_angle and current_angle + math.pi / 2 <= end_angle:
+#             put_pixel(arc_center[X] - x, arc_center[Y] - y, color,screen,width)
+#         # 135 - 180
+#         if current_angle + 3 * math.pi / 4 >= start_angle and current_angle + 3 * math.pi / 4 <= end_angle:
+#             put_pixel(arc_center[X] - y, arc_center[Y] - x, color,screen,width)
+#         # 180 - 225
+#         if current_angle + math.pi >= start_angle and current_angle + math.pi <= end_angle:
+#             put_pixel(arc_center[X] - y, arc_center[Y] + x, color,screen,width)
+#         # 225 - 270
+#         if current_angle + 5 * math.pi / 4 >= start_angle and current_angle + 5 * math.pi / 4 <= end_angle:
+#             put_pixel(arc_center[X] - x, arc_center[Y] + y, color,screen,width)
+#         # 270 - 315
+#         if current_angle + 3 * math.pi / 2 >= start_angle and current_angle + 3 * math.pi / 2 <= end_angle:
+#             put_pixel(arc_center[X] + x, arc_center[Y] + y, color,screen,width)
+#         # 315 - 360
+#         if current_angle + 7 * math.pi / 4 >= start_angle and current_angle + 7 * math.pi / 4 <= end_angle:
+#             put_pixel(arc_center[X] + y, arc_center[Y] + x, color,screen,width)
+        
+#         # Increment x by 1.
+#         x += 1
+
+#         # If d is greater than 0, decrement y by 1 and update the value of d.
+#         if d > 0:
+#             y -= 1
+#             d = d + 4 * (x - y) + 10
+
+#         # Otherwise, update the value of d without changing y.
+#         else:
+#             d = d + 4 * x + 6
 
 
 def draw_circle_helper(circle_x, circle_y, circle_radius, color, screen,width):
@@ -302,8 +339,8 @@ def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
         stroke_width = float(stroke_width) * scale
 
     if start is not None and extent is not None and start != 0 and extent != 360:
-        draw_arc_helper(c,r,start, start + extent,stroke,canvas,stroke_width)
-        # canvas.create_arc(c[0]-r, c[1]-r, c[0]+r, c[1]+r, start=start, extent=extent, style=tk.ARC, width=stroke_width, outline=stroke)
+        # draw_arc_helper(c,r,start, start + extent,stroke,canvas,stroke_width)
+        canvas.create_arc(c[0]-r, c[1]-r, c[0]+r, c[1]+r, start=start, extent=extent, style=tk.ARC, width=stroke_width, outline=stroke)
     else:
         # r = int(r)
         # r = r + stroke_width/2
@@ -481,42 +518,6 @@ def draw_line(canvas: Canvas, p1, p2, shape_properties, ignore_crop=False):
 
     
     canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=fill, width=width, dash=dotted)
-
-def crop_circle(c, r, start, extent):
-    '''
-    Crop a circle if it is outside the enclosing rectangle
-    :param c: The center of the circle
-    :param r: The radius of the circle
-    :param start: The start angle of the circle
-    :param extent: The extent of the circle
-    :return: The cropped circle
-    '''
-    if start is None:
-        start = 0
-    if extent is None:
-        extent = 360
-    # Crop the circle if it is outside the enclosing rectangle
-    should_crop = False
-
-    if c[X] - r < transformed_enclosing_rect[BOTTOM_LEFT][X]:
-        max_left_angle = math.asin((transformed_enclosing_rect[BOTTOM_LEFT][X] - c[X] + r) / r)
-        max_top_left_angle = math.pi - max_left_angle
-        max_bottom_left_angle = math.pi + max_left_angle
-        temp_extent = math.degrees(max_top_left_angle) - float(start)
-        if temp_extent < float(extent):
-            extent = temp_extent
-        should_crop = True
-    if c[X] + r > transformed_enclosing_rect[TOP_RIGHT][X]:
-        should_crop = True
-    if c[Y] - r < transformed_enclosing_rect[TOP_RIGHT][Y]:
-        should_crop = True
-    if c[Y] + r > transformed_enclosing_rect[BOTTOM_LEFT][Y]:
-        should_crop = True
-        
-
-
-
-    return start, extent
 
 def draw_image(canvas: Canvas, root: Element):
     '''
