@@ -225,59 +225,6 @@ def draw_arc_helper(arc_center, arc_radius, start_angle, end_angle, color, scree
             y -= 1
         x += 1
 
-# def draw_arc_helper(arc_center, arc_radius, start_angle, end_angle, color, screen,width):
-#     # Initialize the x and y coordinates of the first point on the circle
-#     # (which is at 0 degrees) and the value of a variable called d.
-#     x = 0
-#     y = arc_radius
-#     d = 3 - 2 * arc_radius
-
-#     start_angle = math.radians(start_angle)
-#     end_angle = math.radians(end_angle)
-
-#     # Loop while x is less than or equal to y.
-#     while x <= y:
-
-#         current_angle = math.atan2(y, x)
-#         # Plot the points of the circle using symmetry
-#         # 0-45
-#         if current_angle >= start_angle and current_angle <= end_angle:
-#             put_pixel(arc_center[X] + y, arc_center[Y] - x, color,screen,width)
-#         #  45 - 90
-#         if current_angle + math.pi / 4 >= start_angle and current_angle + math.pi / 4 <= end_angle:
-#             put_pixel(arc_center[X] + x, arc_center[Y] - y, color,screen,width)
-#         # 90 - 135
-#         if current_angle + math.pi / 2 >= start_angle and current_angle + math.pi / 2 <= end_angle:
-#             put_pixel(arc_center[X] - x, arc_center[Y] - y, color,screen,width)
-#         # 135 - 180
-#         if current_angle + 3 * math.pi / 4 >= start_angle and current_angle + 3 * math.pi / 4 <= end_angle:
-#             put_pixel(arc_center[X] - y, arc_center[Y] - x, color,screen,width)
-#         # 180 - 225
-#         if current_angle + math.pi >= start_angle and current_angle + math.pi <= end_angle:
-#             put_pixel(arc_center[X] - y, arc_center[Y] + x, color,screen,width)
-#         # 225 - 270
-#         if current_angle + 5 * math.pi / 4 >= start_angle and current_angle + 5 * math.pi / 4 <= end_angle:
-#             put_pixel(arc_center[X] - x, arc_center[Y] + y, color,screen,width)
-#         # 270 - 315
-#         if current_angle + 3 * math.pi / 2 >= start_angle and current_angle + 3 * math.pi / 2 <= end_angle:
-#             put_pixel(arc_center[X] + x, arc_center[Y] + y, color,screen,width)
-#         # 315 - 360
-#         if current_angle + 7 * math.pi / 4 >= start_angle and current_angle + 7 * math.pi / 4 <= end_angle:
-#             put_pixel(arc_center[X] + y, arc_center[Y] + x, color,screen,width)
-        
-#         # Increment x by 1.
-#         x += 1
-
-#         # If d is greater than 0, decrement y by 1 and update the value of d.
-#         if d > 0:
-#             y -= 1
-#             d = d + 4 * (x - y) + 10
-
-#         # Otherwise, update the value of d without changing y.
-#         else:
-#             d = d + 4 * x + 6
-
-
 def draw_circle_helper(circle_x, circle_y, circle_radius, color, screen,width):
     # Initialize the x and y coordinates of the first point on the circle
     # (which is at 0 degrees) and the value of a variable called d.
@@ -317,7 +264,6 @@ def draw_circle_helper(circle_x, circle_y, circle_radius, color, screen,width):
         else:
             d = d + 4 * x + 6
         
-    
 
 def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
     '''
@@ -339,16 +285,9 @@ def draw_circle(canvas: Canvas, c, r, shape_properties, start, extent):
         stroke_width = float(stroke_width) * scale
 
     if start is not None and extent is not None and start != 0 and extent != 360:
-        # draw_arc_helper(c,r,start, start + extent,stroke,canvas,stroke_width)
         canvas.create_arc(c[0]-r, c[1]-r, c[0]+r, c[1]+r, start=start, extent=extent, style=tk.ARC, width=stroke_width, outline=stroke)
     else:
-        # r = int(r)
-        # r = r + stroke_width/2
         draw_circle_helper(c[X],c[Y],r,stroke,canvas,stroke_width)
-        # for i in range(1,int(stroke_width)+1):
-            # r = r - 1
-
-        # canvas.create_oval(c[0]-r, c[1]-r, c[0]+r, c[1]+r,fill=fill, outline=stroke, width=stroke_width)
 
 def parse_line(shape_properties: dict):
     '''
@@ -472,7 +411,7 @@ def line_is_partially_outside_enclosing_rect(p1, p2):
 
 
 
-def draw_line(canvas: Canvas, p1, p2, shape_properties, ignore_crop=False):
+def draw_line(canvas: Canvas, p1, p2, shape_properties):
     '''
     Draw a line on the canvas
     :param canvas: The canvas to draw on
@@ -517,8 +456,6 @@ def draw_image(canvas: Canvas, root: Element):
             start = shape_properties.get('start_angle')
             extent = shape_properties.get('extent')
             
-            # start, extent = crop_circle(c, r, start, extent)
-
             # apply the transformation matrix to the start and extent angles
             if start is not None and extent is not None and start != 0 and extent != 360:
                 start = float(start)
@@ -556,7 +493,11 @@ def draw_image(canvas: Canvas, root: Element):
         draw_line(canvas, transformed_enclosing_rect[1], transformed_enclosing_rect[2], {"fill": "red", "width": 1, "dotted": (2, 2)})
         draw_line(canvas, transformed_enclosing_rect[2], transformed_enclosing_rect[3], {"fill": "red", "width": 1, "dotted": (2, 2)})
         draw_line(canvas, transformed_enclosing_rect[3], transformed_enclosing_rect[0], {"fill": "red", "width": 1, "dotted": (2, 2)})
-        
+       
+        draw_line(canvas, crop_rect[0], crop_rect[1], {"fill": "green", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, crop_rect[1], crop_rect[2], {"fill": "green", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, crop_rect[2], crop_rect[3], {"fill": "green", "width": 1, "dotted": (2, 2)})
+        draw_line(canvas, crop_rect[3], crop_rect[0], {"fill": "green", "width": 1, "dotted": (2, 2)})
 
 
 def update_screen():
@@ -745,8 +686,6 @@ def calc_shape_center_and_enclosing_rect(shapes):
                 p1,p2 = calculate_enclosing_rectangle(int(c[0]), int(c[1]), int(r), int(start), int(extent))
                 vertices.append(p1)
                 vertices.append(p2)
-                # vertices.append(p3)
-                # vertices.append(p4)
             else:
                 vertices.append((c[0] - r, c[1] - r))
                 vertices.append((c[0] + r, c[1] - r))
@@ -778,9 +717,6 @@ def calc_shape_center_and_enclosing_rect(shapes):
     border[BOTTOM_LEFT] = (min_x, max_y)
     border[BOTTOM_RIGHT] = (max_x, max_y)
 
-    # border = [(min_x, min_y), (max_x, min_y), (max_x, max_y), (min_x, max_y)]
-
-    
     return np.mean(vertices, axis=0), border
 
 
@@ -855,7 +791,7 @@ def on_mirror_change():
     update_screen()
 
 def main():
-    global root, canvas, window, slider
+    global root, canvas, window, slider, crop_rect
     global scale, angle, translate_X, translate_Y, shape_center, enclosing_rect
     global is_click_to_position, is_show_shape_enclosing_rect, mirror, original_enclosing_rect
 
@@ -923,6 +859,7 @@ def main():
     # calculate the shape's center
     shape_center, enclosing_rect = calc_shape_center_and_enclosing_rect(root.findall('Shape'))
     original_enclosing_rect = enclosing_rect
+    crop_rect = copy.deepcopy(enclosing_rect)
 
     # center the shape to the center of the window
     set_translate_X(WINDOW_WIDTH/2)
