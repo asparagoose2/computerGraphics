@@ -493,12 +493,6 @@ def draw_image(canvas: Canvas, root: Element):
         draw_line(canvas, transformed_enclosing_rect[1], transformed_enclosing_rect[2], {"fill": "red", "width": 1, "dotted": (2, 2)})
         draw_line(canvas, transformed_enclosing_rect[2], transformed_enclosing_rect[3], {"fill": "red", "width": 1, "dotted": (2, 2)})
         draw_line(canvas, transformed_enclosing_rect[3], transformed_enclosing_rect[0], {"fill": "red", "width": 1, "dotted": (2, 2)})
-       
-        draw_line(canvas, crop_rect[0], crop_rect[1], {"fill": "green", "width": 1, "dotted": (2, 2)})
-        draw_line(canvas, crop_rect[1], crop_rect[2], {"fill": "green", "width": 1, "dotted": (2, 2)})
-        draw_line(canvas, crop_rect[2], crop_rect[3], {"fill": "green", "width": 1, "dotted": (2, 2)})
-        draw_line(canvas, crop_rect[3], crop_rect[0], {"fill": "green", "width": 1, "dotted": (2, 2)})
-
 
 def update_screen():
     '''
