@@ -25,8 +25,7 @@ from tkinter import filedialog as fd
 HELP_MESSAGE = '''Use the mouse to drag the image around or click the position you want the image to be at.
 Use the mouse wheel to zoom in and out
 Use the slider to rotate the image.
-Drag the image's border to crop the image.
-From options menu you can choose to show the shape's enclosing rectangle.
+Drag the image's border to crop.
 From options menu you can choose to mirror the image.'''
 HELP_TITLE = "Help"
 DEFAULT_FILE = "tractor.svg"
